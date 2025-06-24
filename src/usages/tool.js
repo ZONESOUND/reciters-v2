@@ -31,3 +31,21 @@ export function usePrevious(value) {
   // Return previous value (happens before update in useEffect above)
   return ref.current;
 }
+
+export const genUUID = () => {
+  var d = Date.now();
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+        d += performance.now(); //use high-precision timer if available
+    }
+    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c === 'x' ? r : ((r & 0x3) | 0x8)).toString(16);
+    });
+    sessionStorage.setItem("StageEffectUUID", uuid);
+    return uuid;
+}
+
+export const jsonCopy = (jsonObj) => {
+  return JSON.parse(JSON.stringify(jsonObj));
+}
