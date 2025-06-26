@@ -1,33 +1,18 @@
 import React, { useMemo } from "react";
-import Anime from "react-anime";
-import { Motion, spring} from "react-motion";
+import { motion } from "motion/react"
 import '../css/AnimeBox.css';
-// import {rgbToHsl} from "../usages/colorUsage"; // Unused
-// import styled from 'styled-components'; // Unused
 
 const AnimeBox = React.memo(({ data, opacity, refresh }) => {
-	// useMemo will re-calculate the animation properties only when the data or opacity changes.
+	// useMemo will re-calculate the animation properties only when data, opacity, or refresh changes.
     // This is efficient and ensures we are working with the latest props when a re-render is triggered.
-	const animeProp = useMemo(() => {
-		const defaultProp = {
-			easing: "easeInOutQuad",
-			loop: 2,
-			duration: 500,
-			direction: "alternate",
-			delay: 0,
-			endDelay: 0,
-			background: "rgba(0,0,0,1)"
-		};
-
-		// IMPORTANT: Create a copy of the data prop to avoid mutation.
+	const { backgroundColor, transition } = useMemo(() => {
 		const light = { ...data };
 		let alpha = 0;
 
-		// Add a fallback for color to prevent errors.
+		// Fallback for color to prevent errors.
 		if (!light.color) {
 			light.color = "0,0,0";
 		}
-		light.colorTemp = light.color;
 
 		if ("alpha" in light) {
 			alpha = light.alpha;
@@ -36,74 +21,94 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 			alpha = opacity;
 		}
 
-		if (!("background" in light)) {
-			light.direction = light.mode === "blink" ? "alternate" : "normal";
-			light.loop = light.mode === "light" ? light.loopTime : light.loopTime*2;
+		// Convert RGB string and alpha to a hex color string with alpha (#RRGGBBAA)
+		const toHex = (c) => Math.round(c).toString(16).padStart(2, '0');
+		const rgbParts = light.color.split(',').map(s => parseInt(s.trim(), 10));
+		const [r, g, b] = rgbParts.length === 3 ? rgbParts : [0, 0, 0]; // Fallback for malformed color
+		const alphaHex = toHex(alpha * 255);
+		//const targetBackgroundColor = `#${toHex(r)}${toHex(g)}${toHex(b)}${alphaHex}`;
+		const targetBackgroundColor = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+
+		const animationTransition = {};
+
+		// Default duration if not specified in data, converted to seconds
+		const defaultDurationSec = (light.duration || 500) / 1000;
+		const defaultDelaySec = (light.delay || 0) / 1000;
+		const defaultEndDelaySec = (light.endDelay || 0) / 1000;
+
+		if (light.mode === "blink") {
+			animationTransition.duration = defaultDurationSec;
+			animationTransition.ease = "easeInOut"; // A common easing, close to easeInOutQuad
+			animationTransition.repeatType = "reverse"; // Corresponds to "alternate"
+			// Calculate repeat count: react-anime loop: N, direction: alternate means N/2 full cycles.
+			// framer-motion repeat: K means K+1 total plays.
+			// So, for N plays (forward/backward), we need N-1 repeats.
+			// If light.loopTime is 1, loop is 2 (fwd-bwd). repeat: 1.
+			// If light.loopTime is 2, loop is 4 (fwd-bwd-fwd-bwd). repeat: 3.
+			animationTransition.repeat = (light.loopTime ? light.loopTime * 2 : 1) - 1;
+			animationTransition.repeat = Math.max(0, animationTransition.repeat); // Ensure non-negative
+			animationTransition.delay = defaultDelaySec;
+			animationTransition.repeatDelay = defaultEndDelaySec;
+		} else if (light.mode === "light") {
+			animationTransition.duration = defaultDurationSec;
+			animationTransition.ease = "easeInOut";
+			animationTransition.repeatType = "loop"; // Corresponds to "normal"
+			// Calculate repeat count: react-anime loop: N means N forward plays.
+			// framer-motion repeat: K means K+1 total plays.
+			// So, for N plays, we need N-1 repeats.
+			animationTransition.repeat = (light.loopTime || 1) - 1;
+			animationTransition.repeat = Math.max(0, animationTransition.repeat);
+			animationTransition.delay = defaultDelaySec;
+			animationTransition.repeatDelay = defaultEndDelaySec;
+		} else if (light.mode === "follow") {
+			// Use spring physics for "follow" mode, similar to react-motion
+			animationTransition.type = "spring";
+			animationTransition.stiffness = 100; // Example value, can be tuned
+			animationTransition.damping = 30;    // Example value, can be tuned
+			animationTransition.mass = 1;        // Example value, can be tuned
+			// Spring transitions don't typically use duration/delay/repeat directly
+			animationTransition.duration = undefined;
+			animationTransition.delay = undefined;
+			animationTransition.repeat = 0;
+			animationTransition.repeatType = undefined;
+			animationTransition.repeatDelay = undefined;
+		} else {
+			// Default animation for other modes (single play)
+			animationTransition.duration = defaultDurationSec;
+			animationTransition.ease = "easeInOut";
+			animationTransition.delay = defaultDelaySec;
+			animationTransition.repeat = 0; // Play once
+			animationTransition.repeatType = "loop";
+			animationTransition.repeatDelay = 0;
 		}
-		light.background = `rgba(${light.colorTemp},${alpha})`;
 
-		// Combine with defaults, ensuring computed properties override defaults.
-		return { ...defaultProp, ...light };
-	}, [data, opacity]);
+		return {
+			backgroundColor: targetBackgroundColor,
+			transition: animationTransition,
+		};
+	}, [data, opacity, refresh]); // Add refresh to dependencies to re-calculate when key changes
 
-	const genRgbStyle = (colorStr, stiffness) => {
-		// Fallback for invalid color string
-		const bg = colorStr || 'rgba(0,0,0,0)';
-	  	let bgColor = bg.substring(5, bg.length-1).split(",");
-	  	const config = {stiffness: stiffness, damping: 30};
-	  	return {
-	  		style: {
-		  		r: spring(parseFloat(bgColor[0]) || 0, config),
-		  		g: spring(parseFloat(bgColor[1]) || 0, config),
-		  		b: spring(parseFloat(bgColor[2]) || 0, config),
-		  		a: spring(parseFloat(bgColor[3]) || 0, config),
-		  	}
-		  }
-	};
-
-	const rgbMotion = ({r, g, b, a}) => {
-        return (
-        	<div id="lightBox"
-	          style={{
-	            background:`rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${a})`
-	          }}>
-          </div>);
-    };
-
-	const { style } = genRgbStyle(animeProp.background, animeProp.duration);
-
-	const motion = (
-		<Motion style={style}>
-			{rgbMotion}
-		</Motion>
-	);
-
-	// Using a key based on the refresh prop ensures that the Anime component
-    // is re-mounted and the animation re-runs when a new effect is triggered.
-	const anime = (
-		<Anime key={refresh.toString()} {...animeProp}>
-			<div id="lightBox"></div>
-		</Anime>
-	);
-
-	return animeProp.mode === "blink" ? anime : motion;
+    return (
+        <motion.div
+            id="lightBox"
+            key={refresh.toString()} // Force re-mount and re-animation when refresh changes
+            animate={{ backgroundColor: backgroundColor }}
+            transition={transition}
+        ></motion.div>
+    );
 
 }, (prevProps, nextProps) => {
-    // This custom comparison function mimics the logic of shouldComponentUpdate.
-    // It returns `true` if the props are considered "equal", preventing a re-render.
 
-    // 1. If refresh is different, we need to re-render to start a new animation.
     if (prevProps.refresh !== nextProps.refresh) {
-        return false; // Not equal
+        return false;
     }
-
-    // 2. If mode is "follow", we also need to re-render when opacity changes.
+    if (prevProps.data !== nextProps.data) {
+        return false; 
+    }
     if (nextProps.data.mode === 'follow' && prevProps.opacity !== nextProps.opacity) {
-        return false; // Not equal
+        return false; 
     }
-
-    // 3. In all other cases, the props are considered equal, so we skip the re-render.
-    return true; // Equal
+    return true;
 });
 
 export default AnimeBox;

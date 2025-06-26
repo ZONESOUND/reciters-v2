@@ -3,6 +3,8 @@ import '../css/App.css';
 import SocketHandler from './SocketHandler';
 import LandPage from './LandPage';
 import Fade from './Fade';
+import AnimeBoxTest from './AnimeBoxTest'; // 引入 AnimeBoxTest
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'; // 引入路由組件
 import * as Tone from "tone";
 
 function App() {
@@ -20,16 +22,28 @@ function App() {
     synth.toDestination();
     synth.triggerAttackRelease("C4", "16n");
   }
-  return (
-  <div>
-    <Fade show={landing}>
-      <LandPage select={selectStart}/>
-    </Fade>
-    <Fade show={speak}>
-      <SocketHandler start={speak}/>
-    </Fade>
-    {/* <Speak /> */}
-  </div>);
+
+  return ( // 使用 Router 包裹整個應用
+    <Router>
+      <Routes>
+        {/* 主頁路由 */}
+        <Route path="/" element={
+          <div>
+            <Fade show={landing}>
+              <LandPage select={selectStart}/>
+            </Fade>
+            <Fade show={speak}>
+              <SocketHandler start={speak}/>
+            </Fade>
+          </div>
+        } />
+        {/* AnimeBoxTest 頁面路由 */}
+        <Route path="/animetest" element={<AnimeBoxTest />} />
+        {/* 新增一個 "Not Found" 路由，用於匹配所有其他未定義的路徑 */}
+        <Route path="*" element={<h1>404: Page Not Found</h1>} />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;

@@ -53,19 +53,22 @@ function SocketHandler(props) {
 
     const handleControlData = useCallback((data) => {
         const rgbColors = ["255, 255, 255"];
-
+        console.log(data);
         const handleLightDataInternal = (light) => {
             if (light.mode === "none") return {};
             if ("color" in light) {
                 if (light.color === "*") delete light.color;
             }
             light.delay = Math.random() * light.delay;
+            console.log('[handleLightDataInternal] light:', light);
             return light;
         };
 
         const handleSocketDataInternal = (d) => {
             var sound = 'sound' in d && d.sound !== '*' ? d.sound : {};
             var light = 'light' in d && d.light !== '*' ? handleLightDataInternal(d.light) : {};
+            console.log('[handleSocketDataInternal] light:', light);
+            console.log('[handleSocketDataInternal] sound:', sound);
 
             if (!("color" in light) && JSON.stringify(light) !== "{}" && "order" in sound) {
                 light.color = rgbColors[sound.order % rgbColors.length];
@@ -98,6 +101,7 @@ function SocketHandler(props) {
             setSoundData(jsonCopy(sound)); 
             setLightData(jsonCopy(light));
             setRefreshAnime(prev => !prev);
+            console.log(light, socketConnect, speak);
         }
     }, []); // Empty dependency array as it doesn't depend on props or state
     
