@@ -3,10 +3,10 @@ import io from 'socket.io-client'
 //const serverHost = 'https://stage-effect-server1-d32b6e8a2ea6.herokuapp.com/';
 const serverHost = 'http://localhost:8000'
 let defaultSocket;
-let isSocketConnect = false;
+//let isSocketConnect = false;
 
-let defaultConnectFn = () => {
-    isSocketConnect = true;
+let defaultConnectFn = (socket) => {
+    //isSocketConnect = true;
     console.log('socket connect to server');
 }
 
@@ -30,7 +30,10 @@ export let connectSocket = (namespace='', fn=defaultConnectFn)=> {
 
     let socket = io(serverHost+namespace);
     if (defaultSocket === undefined) defaultSocket = socket;
-    socket.on('connect', fn);
+    console.log(socket);
+    socket.on('connect', ()=> {
+        fn(socket);
+    });
     return socket;
 }
 
@@ -50,9 +53,10 @@ export let onSocket = (str, fn, socket=defaultSocket)=> {
  * off
  * 
  */
-export let offSocket = (str, socket=defaultSocket) => {
+export let offSocket = (str, fn=undefined, socket=defaultSocket) => {
     if (defaultSocket === undefined) return;
-    socket.off(str);
+    if (fn === undefined) socket.off(str);
+    else socket.off(str, fn);
 }
 
 
@@ -79,4 +83,8 @@ export let emitData = (name, data, socket=defaultSocket)=> {
     socket.emit(name, data);
 }
 
-export {isSocketConnect};
+export let getSocketId = (socket=defaultSocket) => {
+    return socket.id;
+}
+
+//export {isSocketConnect};

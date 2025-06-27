@@ -34,18 +34,16 @@ function InfoPage(props) {
     let num = 0;
     if (props.speakingVoice.length > 0) {
         console.log('speaking voice', props.speakingVoice);
-        props.speakingVoice.forEach((v)=>{
-            if (v == null) return;
-            v = JSON.parse(v);
-            if (!v.name) return;
-            if (num > maxLen) {
-                return;
-            }
-            if (`${v.name} (${v.lang})` !== props.personName) {
-                num++;
-                if (num > 1) speaking += num == maxLen ? ' and ' : ', ';
-                speaking += v.name;
-            }
+        // speakingVoice 這個 prop 現在是由父組件 (SocketHandler) 預先過濾好的。
+        // 我們只需要將列表格式化以進行顯示。
+        props.speakingVoice.forEach((speakingData)=>{
+            let v = speakingData.voice;
+            if (v == null || !v.name) return;
+            if (num > maxLen) return;
+
+            num++;
+            if (num > 1) speaking += num === maxLen ? ' and ' : ', ';
+            speaking += v.name;
         })
         if (num > 0) {
             speaking += num > 1 ? ' are ' : ' is ';

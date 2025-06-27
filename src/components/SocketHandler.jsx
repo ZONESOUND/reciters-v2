@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useRef} from 'react';
+import React, {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import {connectSocket, onSocket, emitData, offSocket } from '@/usages/socketUsage.js';
 import Speak from './Speak';
 import Fade from './Fade';
@@ -10,6 +10,7 @@ import {FullDiv} from '@/usages/cssUsage';
 function SocketHandler(props) {
     const [speak, setSpeak] = useState(false);
     const [id, setId] = useState(-1);
+    const [socketId, setSocketId] = useState(null); // State to store our own socket ID
     const [changeVoice, setChangeVoice] = useState(false);
     const [launch, setLaunch] = useState(false);
     const [showForm, setShowForm] = useState(false);
@@ -26,7 +27,8 @@ function SocketHandler(props) {
     const hasConnectedOnceRef = useRef(false); // Ref to track if connection has been initiated
 
     //TODO: check if stageEffect are used
-    const uuidRef = useRef(sessionStorage.getItem("StageEffectUUID") || genUUID());
+    //const uuidRef = useRef(sessionStorage.getItem("StageEffectUUID") || genUUID());
+    const uuidRef = useRef(genUUID());
 
     const changeVoiceEffect = useCallback(() => {
         setLaunch(true);
@@ -50,6 +52,66 @@ function SocketHandler(props) {
             emitData('speakConfig', {mode: 'changeVoice', voice: voice});
         }
     }, [launch, prevLaunch, voice]);
+
+    // 將事件處理程序移至 useEffect 外部，並使用 useCallback 包裹，
+    // 這可以確保它們在重新渲染之間保持穩定的引用，除非其依賴項發生變化。
+    // 這是處理 React 中副作用（如設置監聽器）的最佳實踐。
+
+    const handleDisconnect = useCallback(() => {
+        setSocketConnect(false);
+    }, []); // setSocketConnect 是穩定的
+
+    const handleDebug = useCallback((data) => {
+        console.log(data);
+        if (data.mode === 'showForm') {
+            setShowForm(data.value);
+        }
+    }, []); // setShowForm 是穩定的
+
+    // 使用 useRef 來獲取 speak 狀態的最新值，這樣 handleSpeak 就不需要依賴 speak 狀態
+    // 確保其引用穩定，避免 useEffect 頻繁重新註冊事件監聽器
+    const speakRef = useRef(speak);
+    useEffect(() => {
+        speakRef.current = speak;
+    }, [speak]);
+
+    const handleSpeak = useCallback((data) => {
+        console.log('handleSpeak received:', data);
+
+        // 優先檢查：如果收到的 speak 事件沒有有效的文字內容，則直接忽略。
+        // 這可以防止因空或無效的 speak 事件導致的狀態快速跳動。
+        if (!data || !data.text || typeof data.text !== 'string' || data.text.trim() === '') {
+            console.log('Ignoring speak event with empty or invalid text:', data);
+            return;
+        }
+        if (speakRef.current) { // 使用 ref 來檢查最新的 speak 狀態
+            console.log('Already speaking. Ignoring new request.');
+            return;
+        }
+        console.log('Not speaking. Updating state to start speaking.', data);
+        setSpeakData(data);
+        setId(data.id);
+        setSpeak(true); // 直接設置為 true
+    }, []); // 移除 speak 依賴項，使 handleSpeak 引用穩定
+
+    const handleSpeakConfig = useCallback((data) => {
+        console.log(data);
+        if (data.mode === 'changeVoice') {
+            changeVoiceEffect();
+        } else if (data.mode === 'showForm') {
+            setShowForm(true);
+        } else if (data.mode === 'hideForm') {
+            setShowForm(false);
+        } else if (data.mode === 'nowSpeak') {
+            console.log('set now speak', data.data);
+            setNowSpeak(data.data);
+        }
+    }, [changeVoiceEffect]);
+
+    const handleSpeakOverAll = useCallback(() => {
+        console.log('set now speak: no one');
+        setNowSpeak([]);
+    }, []);
 
     const handleControlData = useCallback((data) => {
         const rgbColors = ["255, 255, 255"];
@@ -105,11 +167,21 @@ function SocketHandler(props) {
         }
     }, []); // Empty dependency array as it doesn't depend on props or state
     
+    // 使用 useMemo 建立一個衍生的「其他」發言者列表。
+    // 這個列表只會在 nowSpeak 或我們自己的 socketId 改變時重新計算。
+    const otherSpeakers = useMemo(() => {
+        console.log(socketId, nowSpeak)
+        if (!socketId || !nowSpeak) return [];
+        console.log(nowSpeak.filter(speaker => speaker.socketId !== socketId));
+        return nowSpeak.filter(speaker => speaker.socketId !== socketId);
+    }, [nowSpeak, socketId]);
+
     useEffect(()=> {
         // Socket connection: Use ref to prevent double connection in StrictMode
         if (!hasConnectedOnceRef.current) {
-            connectSocket('/receiver', ()=>{
-                console.log('socket connect to server!');
+            connectSocket('/receiver', (socket)=>{ // 假設 connectSocket 會傳遞 socket 物件
+                console.log('socket connect to server! My ID is:', socket.id);
+                setSocketId(socket.id); // <-- 在這裡直接設定 socketId
                 emitData('connected', {
                     uuid: uuidRef.current
                 })
@@ -119,52 +191,13 @@ function SocketHandler(props) {
         }
         // Event handlers should still be set up on each effect run
 
-        // Event handlers
-        const handleDisconnect = () => {
-            setSocketConnect(false);
-        };
-
-        const handleDebug = (data) => {
-            console.log(data);
-            if (data.mode === 'showForm') {
-                setShowForm(data.value);
-            }
-        };
-
-        const handleSpeak = (data) => {
-            console.log('handleSpeak', data, data.id, speak);
-            setSpeak(prevSpeak => {
-                console.log('prevSpeak', prevSpeak);
-                if (!prevSpeak) {
-                    console.log('speak!', data);
-                    setSpeakData(data);
-                    setId(data.id);
-                    return true;
-                }
-                // If already speaking, ignore new request (or handle as a queue if needed)
-                return prevSpeak; 
-            });
-        };
-
-        const handleSpeakConfig = (data) => {
-            console.log(data);
-            if (data.mode === 'changeVoice') {
-                changeVoiceEffect();
-            } else if (data.mode === 'showForm') {
-                setShowForm(true);
-            } else if (data.mode === 'hideForm') {
-                setShowForm(false);
-            } else if (data.mode === 'nowSpeak') {
-                setNowSpeak(data.data);
-            }
-        };
-
         // Register event listeners
         onSocket('disconnect', handleDisconnect);
         onSocket('debug', handleDebug);
         onSocket('speak', handleSpeak);
         onSocket('speakConfig', handleSpeakConfig);
         onSocket('controlData', handleControlData);
+        onSocket('speakOverAll', handleSpeakOverAll)
 
         const beforeUnloadListener = (event) => {
             event.preventDefault();
@@ -176,14 +209,19 @@ function SocketHandler(props) {
 
         return () => {
             // Cleanup: Unregister event listeners
-            offSocket('disconnect');
-            offSocket('debug');
-            offSocket('speak');
-            offSocket('speakConfig');
-            offSocket('controlData');
+            // 為了確保正確移除監聽器，最好將處理程序函數本身傳遞給清理函數。
+            // 這可以防止在 React.StrictMode 中或因其他原因導致 effect 重新運行時，出現重複的監聽器。
+            offSocket('disconnect', handleDisconnect);
+            offSocket('debug', handleDebug);
+            offSocket('speak', handleSpeak);
+            offSocket('speakConfig', handleSpeakConfig);
+            offSocket('controlData', handleControlData);
+            offSocket('speakOverAll', handleSpeakOverAll)
             window.removeEventListener("beforeunload", beforeUnloadListener);
         };
-    }, [handleControlData]); // Add handleControlData to dependency array
+        
+        
+    }, [handleControlData, handleDisconnect, handleDebug, handleSpeak, handleSpeakConfig]);
 
     useInterval(() => {
         setChangeVoice(prev => !prev);
@@ -199,11 +237,13 @@ function SocketHandler(props) {
 
     const speakOver = useCallback(() => {
         setSpeak(false);
-        console.log('speak over', id);
+        console.log('speak over', id, 'voice:', voice);
         if (id !== -1) {
+            // 透過將 id 和 voice 加入依賴陣列，這個 callback 會在其閉包中
+            // 捕獲最新的 state 值。
             emitData('speakOver', {id: id, voice: voice});
         }
-    }, [id, voice]); // setSpeak is stable, emitData is an import
+    }, [id, voice]); // 依賴項確保了 callback 在資料變更時是「新鮮」的。
 
     const changeVoiceCallback = useCallback((newVoice) => {
         setVoice(newVoice);
@@ -216,12 +256,10 @@ function SocketHandler(props) {
             show={socketConnect && !speak}
             stop={speak}
             lightData={lightData} soundData={soundData}
-            refreshAnime={refreshAnime} refreshMusic={refreshMusic}
-        />
+            refreshAnime={refreshAnime} refreshMusic={refreshMusic} />
         <Fade show={socketConnect}>
-            <Speak toSpeak={speak} data={speakData} speakOver={speakOver} 
-                    changeVoice={changeVoice} changeVoiceCallback={changeVoiceCallback}
-                    nowSpeak={nowSpeak} form={showForm}/>
+            <Speak toSpeak={speak} data={speakData} speakOver={speakOver} nowSpeak={otherSpeakers}
+                    changeVoice={changeVoice} changeVoiceCallback={changeVoiceCallback} form={showForm} />
         </Fade>
         <Fade show={socketConnect===false}>
             <FullDiv $bgColor="black"><span>{'CONNECTING SERVER'}</span></FullDiv>

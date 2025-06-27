@@ -26,8 +26,8 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 		const rgbParts = light.color.split(',').map(s => parseInt(s.trim(), 10));
 		const [r, g, b] = rgbParts.length === 3 ? rgbParts : [0, 0, 0]; // Fallback for malformed color
 		const alphaHex = toHex(alpha * 255);
-		//const targetBackgroundColor = `#${toHex(r)}${toHex(g)}${toHex(b)}${alphaHex}`;
-		const targetBackgroundColor = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+		const targetBackgroundColor = `#${toHex(r)}${toHex(g)}${toHex(b)}${alphaHex}`;
+		//const targetBackgroundColor = `rgba(${r}, ${g}, ${b}, ${alpha})`;
 
 		const animationTransition = {};
 
@@ -91,7 +91,7 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
     return (
         <motion.div
             id="lightBox"
-            key={refresh.toString()} // Force re-mount and re-animation when refresh changes
+            //key={shouldRemount ? refresh.toString() : 'animebox'} // 根據模式有條件地改變 key 來強制重新掛載
             animate={{ backgroundColor: backgroundColor }}
             transition={transition}
         ></motion.div>

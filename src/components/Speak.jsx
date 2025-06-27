@@ -43,9 +43,8 @@ function Speak(props) {
   const [voiceIndex, setVoiceIndex] = useState(0);
   const [pitch, setPitch] = useState(1);
   const [rate, setRate] = useState(1);
-  const [speaking, setSpeaking] = useState(false);
-  const {toSpeak, data, changeVoice} = props;
-  const prevSpeak = usePrevious(toSpeak);
+  const {toSpeak, data, changeVoice, speakOver} = props;
+  const prevToSpeak = usePrevious(toSpeak);
   const prevChangeVoice = usePrevious(changeVoice);
   const [revealSentence, setRevealSentence] = useState('');
 
@@ -67,37 +66,65 @@ function Speak(props) {
     };
   }, [synth]); // excludeName is a constant import
 
+  // Cleanup effect to cancel any ongoing speech when the component unmounts.
+  // This prevents orphaned speech synthesis processes.
+  useEffect(() => {
+    return () => {
+      synth.cancel();
+    };
+  }, [synth]);
+
   const speakTextInternal = useCallback((text, currentPitch, currentRate, selectedVoice) => {
     if (!selectedVoice) {
         console.warn("No voice selected for speaking.");
-        setSpeaking(false);
-        setRevealSentence("");
-        // Consider if props.speakOver() should be called here
+        // If we can't speak, immediately tell the parent we are done.
+        speakOver();
         return;
     }
-    setSpeaking(true);
     setRevealSentence(text);
     const utterThis = new SpeechSynthesisUtterance(text);
     utterThis.voice = selectedVoice;
     utterThis.pitch = currentPitch;
     utterThis.rate = currentRate;
+
+    // Add an event listener for when the speech ends
+    utterThis.onend = () => {
+      console.log('SpeechSynthesisUtterance onend triggered.');
+      speakOver(); // Notify parent that speech is over
+      setRevealSentence(""); // Clear the displayed sentence
+    };
+
     console.log('im speaking:', text, synth);
     synth.speak(utterThis);
-  }, [synth, setSpeaking, setRevealSentence, props.speakOver]);
+  }, [synth, setRevealSentence, speakOver]); // Dependencies remain the same
 
-  useEffect(()=>{
-    if (!toSpeak || speaking || !data.text || voices.length === 0) {
-        return;
+  // This effect triggers speech only on the "rising edge" of the toSpeak prop.
+  useEffect(() => {
+    // We only want to act when `toSpeak` becomes true.
+    if (!toSpeak || prevToSpeak) {
+      return;
     }
-    if (prevSpeak === false && toSpeak === true) {
-        const newPitch = data.pitch !== undefined ? data.pitch : pitch;
-        const newRate = data.rate !== undefined ? data.rate : rate;
-        if (data.pitch !== undefined) setPitch(data.pitch);
-        if (data.rate !== undefined) setRate(data.rate);
-        console.log('speakTextInternal:', data.text, newPitch, newRate, voices[voiceIndex])
-        speakTextInternal(data.text, newPitch, newRate, voices[voiceIndex]);
+
+    // Guard against missing data or voices.
+    if (!data.text || voices.length === 0) {
+      console.warn("Speak command received, but no text or voices available. Aborting.");
+      speakOver();
+      return;
     }
-  }, [toSpeak, speaking, data, voices, voiceIndex, pitch, rate, prevSpeak, speakTextInternal, setPitch, setRate]);
+
+    // Determine pitch and rate, and update local state if new values are provided.
+    // This keeps the form in sync with the last spoken parameters.
+    const finalPitch = data.pitch !== undefined ? data.pitch : pitch;
+    const finalRate = data.rate !== undefined ? data.rate : rate;
+
+    if (finalPitch !== pitch) setPitch(finalPitch);
+    if (finalRate !== rate) setRate(finalRate);
+
+    const selectedVoice = voices[voiceIndex];
+    console.log('speakTextInternal:', data.text, finalPitch, finalRate, selectedVoice);
+    speakTextInternal(data.text, finalPitch, finalRate, selectedVoice);
+
+  }, [toSpeak, prevToSpeak, data, voices, voiceIndex, pitch, rate, speakTextInternal, speakOver, setPitch, setRate]);
 
   useEffect(()=>{
     if (prevChangeVoice !== changeVoice && voices.length > 0) {
@@ -110,14 +137,6 @@ function Speak(props) {
         props.changeVoiceCallback({name:voices[voiceIndex].name, lang:voices[voiceIndex].lang});
     }
   }, [voiceIndex, voices, props.changeVoiceCallback]);
-
-  useInterval(() => {
-    if (!synth.speaking) {
-        props.speakOver();
-        setSpeaking(false);
-        setRevealSentence("");
-    }
-  }, speaking ? 100 : null);
 
   let submitSpeak = (event) => {
     event.preventDefault();
@@ -143,11 +162,13 @@ function Speak(props) {
   return (
     <>
       {props.form && <SpeakForm {...formProps}/>}
-      <InfoPage personName={personName} 
-        sentence={revealSentence} speakingVoice={props.nowSpeak} nameColor={speaking ? 'black': 'white'} /> 
-      <Fade show={speaking} speed={'0.3s'}>
-        <FullDiv/>
+      <Fade show={toSpeak} speed={'0.3s'}>
+        <FullDiv $bgColor="white" />
       </Fade>
+      <InfoPage personName={`${personName} ${revealSentence}`} 
+        sentence={revealSentence} 
+        speakingVoice={props.nowSpeak} 
+        nameColor={toSpeak ? 'black': 'white'} />
     </>
   );
 }
