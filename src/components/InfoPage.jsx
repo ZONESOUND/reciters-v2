@@ -1,8 +1,7 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import SiriWave from 'siriwave';
 import '@/css/InfoPage.css';
-import { useInterval } from '../usages/tool';
 
 // css styled component
 const InfoSpan = styled.span`
@@ -33,11 +32,6 @@ function InfoPage(props) {
     const maxLen = 10;
     let speaking = '';
     let num = 0;
-    const [test, setTest] = useState(false);
-    useInterval(()=>{
-        setTest(prev => !prev);
-    }, 3000);
-
     if (props.speakingVoice.length > 0) {
         console.log('speaking voice', props.speakingVoice);
         // speakingVoice 這個 prop 現在是由父組件 (SocketHandler) 預先過濾好的。
@@ -64,8 +58,7 @@ function InfoPage(props) {
             {props.sentence === '' ? '' : `"${props.sentence}"`}
         </InfoSpan>
         <InfoSpan color={'gray'} fontSize={'1.5em'}>{speaking}</InfoSpan>
-        {/* <Wave start={props.sentence === '' ? false : true}/> */}
-        <Wave start={test}/>
+        <Wave start={props.sentence !== ''} />
     </InfoWrapper>);
 }
 

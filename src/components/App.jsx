@@ -25,10 +25,9 @@ function App() {
     synth.triggerAttackRelease("C4", "16n");
   }
 
-  return ( // 使用 Router 包裹整個應用
+  return ( 
     <Router>
       <Routes>
-        {/* 主頁路由 */}
         <Route path="/" element={
           <div>
             <Fade show={landing}>
@@ -39,13 +38,9 @@ function App() {
             </Fade>
           </div>
         } />
-        {/* AnimeBoxTest 頁面路由 */}
         <Route path="/animetest" element={<AnimeBoxTest />} />
-        {/* MusicBoxTest 頁面路由 */}
         <Route path="/musictest" element={<MusicBoxTest />} />
-        {/* FadeTest 頁面路由 */}
         <Route path="/testfade" element={<FadeTest />} />
-        {/* 新增一個 "Not Found" 路由，用於匹配所有其他未定義的路徑 */}
         <Route path="*" element={<h1>404: Page Not Found</h1>} />
       </Routes>
     </Router>

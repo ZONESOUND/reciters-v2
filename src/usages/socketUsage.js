@@ -1,9 +1,10 @@
 import io from 'socket.io-client'
 //import {serverHost} from './config'
 //const serverHost = 'https://stage-effect-server1-d32b6e8a2ea6.herokuapp.com/';
-const serverHost = 'http://localhost:8000'
+const serverHost = import.meta.env.VITE_API_SERVER;
 let defaultSocket;
 //let isSocketConnect = false;
+console.log('server', serverHost);
 
 let defaultConnectFn = (socket) => {
     //isSocketConnect = true;
