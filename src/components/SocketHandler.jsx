@@ -115,6 +115,7 @@ function SocketHandler(props) {
 
     const handleControlData = useCallback((data) => {
         const rgbColors = ["255, 255, 255"];
+        //TODO: set rgbColors anywhere?
         console.log(data);
         const handleLightDataInternal = (light) => {
             if (light.mode === "none") return {};
@@ -163,7 +164,6 @@ function SocketHandler(props) {
             setSoundData(jsonCopy(sound)); 
             setLightData(jsonCopy(light));
             setRefreshAnime(prev => !prev);
-            console.log(light, socketConnect, speak);
         }
     }, []); // Empty dependency array as it doesn't depend on props or state
     

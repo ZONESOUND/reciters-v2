@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import SiriWave from 'siriwave';
 import '@/css/InfoPage.css';
+import { useInterval } from '../usages/tool';
 
 // css styled component
 const InfoSpan = styled.span`
@@ -32,6 +33,11 @@ function InfoPage(props) {
     const maxLen = 10;
     let speaking = '';
     let num = 0;
+    const [test, setTest] = useState(false);
+    useInterval(()=>{
+        setTest(prev => !prev);
+    }, 3000);
+
     if (props.speakingVoice.length > 0) {
         console.log('speaking voice', props.speakingVoice);
         // speakingVoice 這個 prop 現在是由父組件 (SocketHandler) 預先過濾好的。
@@ -58,56 +64,58 @@ function InfoPage(props) {
             {props.sentence === '' ? '' : `"${props.sentence}"`}
         </InfoSpan>
         <InfoSpan color={'gray'} fontSize={'1.5em'}>{speaking}</InfoSpan>
-        <Wave start={props.sentence === '' ? false : true}/>
+        {/* <Wave start={props.sentence === '' ? false : true}/> */}
+        <Wave start={test}/>
     </InfoWrapper>);
 }
 
-class Wave extends React.Component {
-    constructor(props) {
-        super(props);
-        this.containerRef = React.createRef(); // Renamed for clarity, was this.myRef
-        this.siriWaveInstance = null; // Store instance directly on the component
-    }
+/**
+ * A functional component that displays a Siri-like wave animation.
+ * It uses React Hooks (useRef, useEffect) to manage the lifecycle of the
+ * external SiriWave library instance.
+ *
+ * @param {object} props - The component props.
+ * @param {boolean} props.start - Controls whether the wave is active (animating with amplitude) or inactive.
+ */
+function Wave({ start }) {
+    const containerRef = useRef(null);
+    const siriWaveInstanceRef = useRef(null);
 
-    componentDidMount() {
-        if (!this.containerRef.current) return;
+    // Effect for initialization and cleanup of the SiriWave instance.
+    useEffect(() => {
+        // Ensure the container is rendered before initializing.
+        if (!containerRef.current) return;
 
-        // Initialize SiriWave
-        this.siriWaveInstance = new SiriWave({
-            container: this.containerRef.current,
+        // Initialize SiriWave and store the instance in a ref.
+        siriWaveInstanceRef.current = new SiriWave({
+            container: containerRef.current,
             style: 'ios9',
             width: 320,
             height: 100,
             speed: 0.2,
-            amplitude: this.props.start ? 1 : 0, // Set initial amplitude based on props.start
-            autostart: true, // Autostart with the defined amplitude
+            amplitude: 0, // Start with 0 amplitude; the effect below will set it.
+            autostart: true,
         });
-    }
 
-    componentDidUpdate(prevProps) {
-        // Update amplitude if the 'start' prop changes
-        if (this.siriWaveInstance && prevProps.start !== this.props.start) {
-            if (this.props.start) {
-                this.siriWaveInstance.setAmplitude(1); // Active amplitude
-            } else {
-                this.siriWaveInstance.setAmplitude(0); // Inactive amplitude
+        // Cleanup function: dispose of the instance when the component unmounts.
+        return () => {
+            if (siriWaveInstanceRef.current) {
+                siriWaveInstanceRef.current.dispose();
+                siriWaveInstanceRef.current = null;
             }
-        }
-    }
+        };
+    }, []); // Empty dependency array ensures this runs only once on mount.
 
-    componentWillUnmount() {
-        // Cleanup SiriWave instance
-        if (this.siriWaveInstance) {
-            this.siriWaveInstance.dispose(); // Assuming 'dispose' is the cleanup method
-            this.siriWaveInstance = null;
+    // Effect to update the wave's amplitude when the 'start' prop changes.
+    useEffect(() => {
+        if (siriWaveInstanceRef.current) {
+            const newAmplitude = start ? 1 : 0;
+            siriWaveInstanceRef.current.setAmplitude(newAmplitude);
         }
-    }
+    }, [start]); // This effect depends on the 'start' prop.
 
-    render() {
-        return (<>
-            <div ref={this.containerRef}></div>
-        </>);
-    }
-  }
+    // The container div needs explicit dimensions for the canvas to be visible.
+    return <div ref={containerRef} style={{ width: '320px', height: '100px' }} />;
+}
 
 export default InfoPage;

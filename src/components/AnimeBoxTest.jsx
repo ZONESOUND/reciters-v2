@@ -70,6 +70,10 @@ function AnimeBoxTest() {
         delay: 0,
         endDelay: 500,
         loopTime: 1,
+        noise: true, // 預設開啟以顯示新控制項
+        noiseIntensity: 0.1, // 預設強度
+        noiseSize: 150, // 預設顆粒大小
+
     });
     const [formOpacity, setFormOpacity] = useState(0.5);
 
@@ -81,10 +85,12 @@ function AnimeBoxTest() {
     const [refresh, setRefresh] = useState(false);
     
     const handleDataChange = useCallback((e) => {
-        const { name, value, type } = e.target;
+        // 處理 checkbox 的 checked 屬性
+        const { name, value, type, checked } = e.target;
         setFormData(prevData => ({
             ...prevData,
-            [name]: type === 'number' ? Number(value) : value,
+            [name]: type === 'checkbox' ? checked : (type === 'number' || type === 'range' ? Number(value) : value),
+
         }));
     }, []);
 
@@ -141,6 +147,29 @@ function AnimeBoxTest() {
                     <label style={styles.label} htmlFor="loopTime">Loop Time</label>
                     <input id="loopTime" name="loopTime" type="number" min="1" value={formData.loopTime} onChange={handleDataChange} style={styles.input} />
                 </div>
+
+                <div style={styles.controlGroup}>
+                    <label style={{...styles.label, display: 'flex', alignItems: 'center', gap: '10px'}} htmlFor="noise">
+                        <span>Noise Effect</span>
+                        <input id="noise" name="noise" type="checkbox" checked={formData.noise} onChange={handleDataChange} />
+                    </label>
+                </div>
+
+
+                {/* 僅在 noise 特效啟用時顯示相關控制項 */}
+                {formData.noise && (
+                    <>
+                        <div style={styles.controlGroup}>
+                            <label style={styles.label} htmlFor="noiseIntensity">Noise Intensity ({formData.noiseIntensity.toFixed(2)})</label>
+                            <input id="noiseIntensity" name="noiseIntensity" type="range" min="0" max="1" step="0.05" value={formData.noiseIntensity} onChange={handleDataChange} style={{...styles.input, padding: 0}} />
+                        </div>
+
+                        <div style={styles.controlGroup}>
+                            <label style={styles.label} htmlFor="noiseSize">Noise Size ({formData.noiseSize}px)</label>
+                            <input id="noiseSize" name="noiseSize" type="range" min="50" max="500" step="10" value={formData.noiseSize} onChange={handleDataChange} style={{...styles.input, padding: 0}} />
+                        </div>
+                    </>
+                )}
                 
                 <hr />
 

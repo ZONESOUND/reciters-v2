@@ -1,11 +1,14 @@
-import React, { useMemo } from "react";
-import { motion } from "motion/react"
+import React, { useMemo, useEffect } from "react";
+import { motion, useAnimationControls } from "framer-motion";
 import '../css/AnimeBox.css';
 
 const AnimeBox = React.memo(({ data, opacity, refresh }) => {
+	const controls = useAnimationControls();
+
 	// useMemo will re-calculate the animation properties only when data, opacity, or refresh changes.
     // This is efficient and ensures we are working with the latest props when a re-render is triggered.
-	const { backgroundColor, transition } = useMemo(() => {
+	// The animation parameters depend on `data` and `opacity`.
+	const { animate, transition } = useMemo(() => {
 		const light = { ...data };
 		let alpha = 0;
 
@@ -27,7 +30,6 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 		const [r, g, b] = rgbParts.length === 3 ? rgbParts : [0, 0, 0]; // Fallback for malformed color
 		const alphaHex = toHex(alpha * 255);
 		const targetBackgroundColor = `#${toHex(r)}${toHex(g)}${toHex(b)}${alphaHex}`;
-		//const targetBackgroundColor = `rgba(${r}, ${g}, ${b}, ${alpha})`;
 
 		const animationTransition = {};
 
@@ -38,24 +40,16 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 
 		if (light.mode === "blink") {
 			animationTransition.duration = defaultDurationSec;
-			animationTransition.ease = "easeInOut"; // A common easing, close to easeInOutQuad
-			animationTransition.repeatType = "reverse"; // Corresponds to "alternate"
-			// Calculate repeat count: react-anime loop: N, direction: alternate means N/2 full cycles.
-			// framer-motion repeat: K means K+1 total plays.
-			// So, for N plays (forward/backward), we need N-1 repeats.
-			// If light.loopTime is 1, loop is 2 (fwd-bwd). repeat: 1.
-			// If light.loopTime is 2, loop is 4 (fwd-bwd-fwd-bwd). repeat: 3.
+			animationTransition.ease = "easeInOut";
+			animationTransition.repeatType = "reverse"; 
 			animationTransition.repeat = (light.loopTime ? light.loopTime * 2 : 1) - 1;
-			animationTransition.repeat = Math.max(0, animationTransition.repeat); // Ensure non-negative
+			animationTransition.repeat = Math.max(0, animationTransition.repeat);
 			animationTransition.delay = defaultDelaySec;
 			animationTransition.repeatDelay = defaultEndDelaySec;
 		} else if (light.mode === "light") {
 			animationTransition.duration = defaultDurationSec;
 			animationTransition.ease = "easeInOut";
-			animationTransition.repeatType = "loop"; // Corresponds to "normal"
-			// Calculate repeat count: react-anime loop: N means N forward plays.
-			// framer-motion repeat: K means K+1 total plays.
-			// So, for N plays, we need N-1 repeats.
+			animationTransition.repeatType = "loop"; 
 			animationTransition.repeat = (light.loopTime || 1) - 1;
 			animationTransition.repeat = Math.max(0, animationTransition.repeat);
 			animationTransition.delay = defaultDelaySec;
@@ -83,17 +77,36 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 		}
 
 		return {
-			backgroundColor: targetBackgroundColor,
+			animate: { backgroundColor: targetBackgroundColor },
 			transition: animationTransition,
 		};
-	}, [data, opacity, refresh]); // Add refresh to dependencies to re-calculate when key changes
+	}, [data, opacity]); // `refresh` is now an imperative trigger, not a memoization dependency.
+
+	// This effect uses the animation controls to start a new animation.
+	// It runs whenever a refresh is triggered or the animation parameters change.
+	// Because the component is not unmounted, it transitions smoothly from the current state.
+	useEffect(() => {
+		controls.start(animate, transition);
+	}, [refresh, animate, transition, controls]);
+
+	const dynamicStyles = useMemo(() => {
+        if (data.noise) {
+            return {
+                '--noise-intensity': data.noiseIntensity || 0.1,
+                '--noise-size': `${data.noiseSize || 150}px`,
+            };
+        }
+        return {};
+    }, [data.noise, data.noiseIntensity, data.noiseSize]);
+
 
     return (
         <motion.div
             id="lightBox"
-            //key={shouldRemount ? refresh.toString() : 'animebox'} // 根據模式有條件地改變 key 來強制重新掛載
-            animate={{ backgroundColor: backgroundColor }}
-            transition={transition}
+			className={data.noise ? 'noise-effect' : ''}
+            style={dynamicStyles} 
+			animate={controls}
+			initial={{ backgroundColor: 'rgba(0,0,0,0)' }}
         ></motion.div>
     );
 

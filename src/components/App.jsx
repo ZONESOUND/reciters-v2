@@ -4,6 +4,7 @@ import SocketHandler from './SocketHandler';
 import LandPage from './LandPage';
 import Fade from './Fade';
 import AnimeBoxTest from './AnimeBoxTest'; // 引入 AnimeBoxTest
+import MusicBoxTest from './MusicBoxTest'; // 引入 MusicBoxTest
 import FadeTest from './FadeTest'; // 引入 FadeTest
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'; // 引入路由組件
 import * as Tone from "tone";
@@ -40,6 +41,8 @@ function App() {
         } />
         {/* AnimeBoxTest 頁面路由 */}
         <Route path="/animetest" element={<AnimeBoxTest />} />
+        {/* MusicBoxTest 頁面路由 */}
+        <Route path="/musictest" element={<MusicBoxTest />} />
         {/* FadeTest 頁面路由 */}
         <Route path="/testfade" element={<FadeTest />} />
         {/* 新增一個 "Not Found" 路由，用於匹配所有其他未定義的路徑 */}
