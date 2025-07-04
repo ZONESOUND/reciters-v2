@@ -6,7 +6,7 @@ import Fade from './Fade';
 import AnimeBoxTest from './AnimeBoxTest'; // 引入 AnimeBoxTest
 import MusicBoxTest from './MusicBoxTest'; // 引入 MusicBoxTest
 import FadeTest from './FadeTest'; // 引入 FadeTest
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'; // 引入路由組件
+import { HashRouter as Router, Routes, Route } from 'react-router-dom'; // 引入路由組件
 import * as Tone from "tone";
 
 function App() {
