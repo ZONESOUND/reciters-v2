@@ -105,8 +105,12 @@ function SocketHandler(props) {
         } else if (data.mode === 'nowSpeak') {
             console.log('set now speak', data.data);
             setNowSpeak(data.data);
+        } else if (data.mode === 'stop') {
+            console.log('Received stop command. Stopping all speech.');
+            setSpeak(false);
+            setNowSpeak([]);
         }
-    }, [changeVoiceEffect]);
+    }, [changeVoiceEffect, setSpeak, setShowForm, setNowSpeak]);
 
     const handleSpeakOverAll = useCallback(() => {
         console.log('set now speak: no one');
@@ -160,8 +164,9 @@ function SocketHandler(props) {
             setRefreshMusic(prev => !prev);
         }
         if (JSON.stringify(light) !== "{}") {
-            // The original code set soundData here too, preserving that behavior.
-            setSoundData(jsonCopy(sound)); 
+            // The redundant call to setSoundData is removed.
+            // The `sound` state is already correctly handled by the block above.
+            // This prevents the effect in MusicBox from being triggered a second time.
             setLightData(jsonCopy(light));
             setRefreshAnime(prev => !prev);
         }
@@ -253,8 +258,8 @@ function SocketHandler(props) {
         {/* Unused button: <button onClick={sendDebug}>Send Debug</button> */}
         {/* Unused button: <button onClick={sendChangeVoice}>Send Change Voice</button> */}
         <EffectBox
-            show={socketConnect && !speak}
-            stop={speak}
+            show={socketConnect}
+            stop={!socketConnect}
             lightData={lightData} soundData={soundData}
             refreshAnime={refreshAnime} refreshMusic={refreshMusic} />
         <Fade show={socketConnect}>
