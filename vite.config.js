@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react-swc'
 import { resolve } from 'node:path';    
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   base: mode === 'production' ? '/reciter-v2/' : '/',
   resolve: {
@@ -15,4 +15,4 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000 // in kB
   }
 
-})
+}))
