@@ -5,10 +5,14 @@ import { resolve } from 'node:path';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // base: '/reciter-v2/',
+  base: mode === 'production' ? '/reciter-v2/' : '/',
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
     },
+  },
+  build: {
+    chunkSizeWarningLimit: 1000 // in kB
   }
+
 })
