@@ -11,11 +11,11 @@ function SocketHandler(props) {
     const [speak, setSpeak] = useState(false);
     const [id, setId] = useState(-1);
     const [socketId, setSocketId] = useState(null); // State to store our own socket ID
-    const [changeVoice, setChangeVoice] = useState(false);
     const [launch, setLaunch] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [speakData, setSpeakData] = useState({});
     const [voice, setVoice] = useState(); 
+    const [voiceCommand, setVoiceCommand] = useState(null);
     const [socketConnect, setSocketConnect] = useState(false);
     const [nowSpeak, setNowSpeak] = useState([]);
     const [lightData, setLightData] = useState({});
@@ -24,25 +24,13 @@ function SocketHandler(props) {
     const [refreshMusic, setRefreshMusic] = useState(false);
 
     const prevLaunch = usePrevious(launch);
+    const prevStart = usePrevious(props.start);
     const hasConnectedOnceRef = useRef(false); // Ref to track if connection has been initiated
+    const hasInitializedVoice = useRef(false); // Ref to track if the voice has been set at least once
 
     //TODO: check if stageEffect are used
     //const uuidRef = useRef(sessionStorage.getItem("StageEffectUUID") || genUUID());
     const uuidRef = useRef(genUUID());
-
-    const changeVoiceEffect = useCallback(() => {
-        setLaunch(true);
-        setTimeout(()=>{
-            setLaunch(false);
-        }, 2000);
-    }, [setLaunch]);
-
-    useEffect(()=>{
-        //if (props.start && socketConnect) {
-        if (socketConnect) {
-            changeVoiceEffect();
-        }
-    }, [socketConnect, changeVoiceEffect])
 
     // Effect to emit voice config when launch transitions from true to false
     useEffect(() => {
@@ -52,6 +40,27 @@ function SocketHandler(props) {
             emitData('speakConfig', {mode: 'changeVoice', voice: voice});
         }
     }, [launch, prevLaunch, voice]);
+
+    // Effect to trigger random voice selection when the component starts
+    useEffect(() => {
+        // Trigger on the rising edge of the `start` prop
+        if (props.start && !prevStart) {
+            console.log('Start prop became true, triggering random voice selection.');
+            setVoiceCommand({ value: 'random', trigger: Date.now() });
+        }
+    }, [props.start, prevStart]);
+
+    // Effect to report voice changes back to the server
+    useEffect(() => {
+        // This effect triggers when the `voice` state is updated from the Speak component.
+        // We check `hasInitializedVoice.current` to avoid sending an event on the initial mount.
+        if (voice && hasInitializedVoice.current) {
+            console.log('Voice changed, reporting to server:', voice);
+            emitData('speakConfig', { mode: 'changeVoice', voice: voice, socketId: socketId });
+        } else if (voice) {
+            hasInitializedVoice.current = true;
+        }
+    }, [voice, socketId]); // It depends on `voice` to know when to run.
 
     // 將事件處理程序移至 useEffect 外部，並使用 useCallback 包裹，
     // 這可以確保它們在重新渲染之間保持穩定的引用，除非其依賴項發生變化。
@@ -96,21 +105,35 @@ function SocketHandler(props) {
 
     const handleSpeakConfig = useCallback((data) => {
         console.log(data);
-        if (data.mode === 'changeVoice') {
-            changeVoiceEffect();
-        } else if (data.mode === 'showForm') {
+        if (data.mode === 'showForm') {
             setShowForm(true);
         } else if (data.mode === 'hideForm') {
             setShowForm(false);
         } else if (data.mode === 'nowSpeak') {
             console.log('set now speak', data.data);
             setNowSpeak(data.data);
+        } else if (data.mode === 'changeVoice') {
+            // 廣播指令，要求所有客戶端隨機更換語音
+            setVoiceCommand({ value: 'random', trigger: Date.now() });
+        } else if (data.mode === 'assignVoice') {
+            // 指派特定語音給單一或所有客戶端
+            if (!data.socketId || data.socketId == '*' || data.socketId === socketId) {
+                const target = !data.socketId || data.socketId === '*' ? 'all clients' : 'this client';
+                const commandPayload = {
+                    name: data.voice, // 'voice' 屬性被視為語音名稱
+                    lang: data.lang   // 'lang' 屬性是語言代碼
+                };
+
+                Object.keys(commandPayload).forEach(key => (commandPayload[key] === undefined || commandPayload[key] == '*') && delete commandPayload[key]);
+                console.log(`Assigning voice with criteria: ${JSON.stringify(commandPayload)} to ${target}.`);
+                setVoiceCommand({ value: commandPayload, trigger: Date.now() });
+            }
         } else if (data.mode === 'stop') {
             console.log('Received stop command. Stopping all speech.');
             setSpeak(false);
             setNowSpeak([]);
         }
-    }, [changeVoiceEffect, setSpeak, setShowForm, setNowSpeak]);
+    }, [setSpeak, setShowForm, setNowSpeak, socketId]);
 
     const handleSpeakOverAll = useCallback(() => {
         console.log('set now speak: no one');
@@ -228,18 +251,6 @@ function SocketHandler(props) {
         
     }, [handleControlData, handleDisconnect, handleDebug, handleSpeak, handleSpeakConfig]);
 
-    useInterval(() => {
-        setChangeVoice(prev => !prev);
-    }, launch ? 100 : null);
-
-    let sendDebug = () => {
-        emitData('debug', 'testing');
-    }
-    let sendChangeVoice = () => {
-        console.log('send change voice');
-        setChangeVoice(!changeVoice);
-    }
-
     const speakOver = useCallback(() => {
         setSpeak(false);
         console.log('speak over', id, 'voice:', voice);
@@ -263,8 +274,8 @@ function SocketHandler(props) {
             lightData={lightData} soundData={soundData}
             refreshAnime={refreshAnime} refreshMusic={refreshMusic} />
         <Fade show={socketConnect}>
-            <Speak toSpeak={speak} data={speakData} speakOver={speakOver} nowSpeak={otherSpeakers}
-                    changeVoice={changeVoice} changeVoiceCallback={changeVoiceCallback} form={showForm} />
+            <Speak toSpeak={speak} data={speakData} speakOver={speakOver} nowSpeak={otherSpeakers} voiceCommand={voiceCommand}
+                    changeVoiceCallback={changeVoiceCallback} form={showForm} />
         </Fade>
         <Fade show={socketConnect===false}>
             <FullDiv $bgColor="black"><span>{'CONNECTING SERVER'}</span></FullDiv>

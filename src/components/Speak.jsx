@@ -43,10 +43,10 @@ function Speak(props) {
   const [voiceIndex, setVoiceIndex] = useState(0);
   const [pitch, setPitch] = useState(1);
   const [rate, setRate] = useState(1);
-  const {toSpeak, data, changeVoice, speakOver} = props;
+  const {toSpeak, data, speakOver, voiceCommand} = props;
   const prevToSpeak = usePrevious(toSpeak);
-  const prevChangeVoice = usePrevious(changeVoice);
   const [revealSentence, setRevealSentence] = useState('');
+  const [isRandomizing, setIsRandomizing] = useState(false);
 
   // Effect for initializing and updating voices
   useEffect(()=>{
@@ -99,44 +99,116 @@ function Speak(props) {
   }, [synth, setRevealSentence, speakOver]); // Dependencies remain the same
 
   // This effect triggers speech only on the "rising edge" of the toSpeak prop.
+  // It also handles stopping the speech on the "falling edge".
   useEffect(() => {
-    // We only want to act when `toSpeak` becomes true.
-    if (!toSpeak || prevToSpeak) {
-      return;
+    // Rising edge: toSpeak becomes true, let's start speaking.
+    if (toSpeak && !prevToSpeak) {
+      // Guard against missing data or voices.
+      if (!data.text || voices.length === 0) {
+        console.warn("Speak command received, but no text or voices available. Aborting.");
+        speakOver();
+        return;
+      }
+
+      // Determine pitch and rate, and update local state if new values are provided.
+      // This keeps the form in sync with the last spoken parameters.
+      const finalPitch = data.pitch !== undefined ? data.pitch : pitch;
+      const finalRate = data.rate !== undefined ? data.rate : rate;
+
+      if (finalPitch !== pitch) setPitch(finalPitch);
+      if (finalRate !== rate) setRate(finalRate);
+
+      const selectedVoice = voices[voiceIndex];
+      console.log('speakTextInternal:', data.text, finalPitch, finalRate, selectedVoice);
+      speakTextInternal(data.text, finalPitch, finalRate, selectedVoice);
+    } else if (!toSpeak && prevToSpeak) {
+      // Falling edge: toSpeak becomes false (e.g., from a stop command)
+      console.log('toSpeak became false. Cancelling any ongoing speech.');
+      synth.cancel();
+      // The onend event will not fire when we cancel, so we need to manually
+      // clear the sentence that is displayed on screen.
+      setRevealSentence("");
     }
+  }, [toSpeak, prevToSpeak, data, voices, voiceIndex, pitch, rate, speakTextInternal, speakOver, setPitch, setRate, synth, setRevealSentence]);
 
-    // Guard against missing data or voices.
-    if (!data.text || voices.length === 0) {
-      console.warn("Speak command received, but no text or voices available. Aborting.");
-      speakOver();
-      return;
+  // This effect will rapidly change the voice index for a visual "shuffling" effect.
+  useInterval(() => {
+    if (voices.length > 0) {
+        const newIndex = Math.floor(Math.random() * voices.length);
+        setVoiceIndex(newIndex);
     }
-
-    // Determine pitch and rate, and update local state if new values are provided.
-    // This keeps the form in sync with the last spoken parameters.
-    const finalPitch = data.pitch !== undefined ? data.pitch : pitch;
-    const finalRate = data.rate !== undefined ? data.rate : rate;
-
-    if (finalPitch !== pitch) setPitch(finalPitch);
-    if (finalRate !== rate) setRate(finalRate);
-
-    const selectedVoice = voices[voiceIndex];
-    console.log('speakTextInternal:', data.text, finalPitch, finalRate, selectedVoice);
-    speakTextInternal(data.text, finalPitch, finalRate, selectedVoice);
-
-  }, [toSpeak, prevToSpeak, data, voices, voiceIndex, pitch, rate, speakTextInternal, speakOver, setPitch, setRate]);
+  }, isRandomizing ? 100 : null); // Runs every 100ms only when isRandomizing is true.
 
   useEffect(()=>{
-    if (prevChangeVoice !== changeVoice && voices.length > 0) {
-      setVoiceIndex(Math.floor(Math.random() * voices.length));
-    }
-  }, [changeVoice, prevChangeVoice, voices, setVoiceIndex]);
-
-  useEffect(()=>{
-    if (voices.length > 0 && voices[voiceIndex]) {
+    // Only report the voice change up to the parent component when the voice has "settled",
+    // i.e., not in the middle of the randomization animation.
+    if (!isRandomizing && voices.length > 0 && voices[voiceIndex]) {
+        console.log('Voice settled. Reporting to parent:', voices[voiceIndex].name);
         props.changeVoiceCallback({name:voices[voiceIndex].name, lang:voices[voiceIndex].lang});
     }
-  }, [voiceIndex, voices, props.changeVoiceCallback]);
+  }, [voiceIndex, voices, props.changeVoiceCallback, isRandomizing]);
+
+  // Unified effect to handle all voice change commands from the server
+  useEffect(() => {
+    if (!voiceCommand || voices.length === 0) {
+      return;
+    }
+
+    const { value } = voiceCommand;
+
+    // Always start the randomization animation for visual feedback.
+    setIsRandomizing(true);
+
+    const animationTimer = setTimeout(() => {
+        // First, stop the randomization animation. This will cause a re-render
+        // which in turn stops the `useInterval` hook from firing again.
+        setIsRandomizing(false);
+        console.log('Voice selection animation stopped.');
+
+        // By using a minimal timeout, we schedule the final voice selection to happen
+        // *after* the re-render that stops the animation. This prevents a race condition
+        // where the interval could fire one last time and override our specific selection.
+        setTimeout(() => {
+            // If a specific voice was requested, set it now.
+            // If the command was 'random', we do nothing, leaving the last randomly selected voice.
+            if (typeof value === 'object' && value !== null) {
+                const { name, lang } = value;
+                let newIndex = -1;
+
+                if (name && lang) {
+                    console.log(`Searching for voice with name "${name}" AND lang "${lang}".`);
+                    newIndex = voices.findIndex(v => v.name === name && v.lang === lang);
+                } else if (name) {
+                    console.log(`Searching for a random voice containing the name "${name}".`);
+                    const matchingVoices = voices.filter(v => v.name.includes(name));
+                    if (matchingVoices.length > 0) {
+                        // Select a random voice from the filtered list
+                        const randomMatchingVoice = matchingVoices[Math.floor(Math.random() * matchingVoices.length)];
+                        // Find the index of the randomly selected voice in the original voices array
+                        newIndex = voices.indexOf(randomMatchingVoice);
+                    }
+                } else if (lang) {
+                    console.log(`Searching for a random voice with lang "${lang}".`);
+                    const matchingVoices = voices.filter(v => v.lang === lang);
+                    if (matchingVoices.length > 0) {
+                        const randomMatchingVoice = matchingVoices[Math.floor(Math.random() * matchingVoices.length)];
+                        newIndex = voices.indexOf(randomMatchingVoice);
+                    }
+                }
+
+                if (newIndex !== -1) {
+                    console.log(`Found matching voice at index ${newIndex}. Setting it now.`);
+                    setVoiceIndex(newIndex);
+                } else {
+                    console.warn(`No voice found matching criteria: ${JSON.stringify(value)}`);
+                }
+            }
+        }, 10); // A small delay is enough to push this to the next event loop tick.
+    }, 1000); // Animation duration: 1 second.
+
+    // Cleanup function to clear the timer if the component unmounts or the command changes.
+    return () => clearTimeout(animationTimer);
+  }, [voiceCommand, voices]);
 
   let submitSpeak = (event) => {
     event.preventDefault();
