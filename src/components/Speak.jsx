@@ -89,12 +89,25 @@ function Speak(props) {
     utterThis.pitch = currentPitch;
     utterThis.rate = currentRate;
 
-    // Add an event listener for when the speech ends
-    utterThis.onend = () => {
-      console.log('SpeechSynthesisUtterance onend triggered.');
+    // Safety net timer in case onend/onerror doesn't fire.
+    // Estimated speech duration + a 5-second buffer.
+    const estimatedDuration = (text.length / 10) * 1000 * (1 / currentRate); // Rough estimate
+    const safetyTimeout = Math.max(5000, estimatedDuration + 5000); // Minimum 5s
+    const safetyTimer = setTimeout(() => {
+      console.warn(`Speech safety timer triggered after ${safetyTimeout}ms. Forcing speakOver.`);
+      speakOver();
+      setRevealSentence("");
+    }, safetyTimeout);
+
+    const handleSpeechEnd = () => {
+      clearTimeout(safetyTimer); // Clear the safety timer
+      console.log('SpeechSynthesisUtterance onend/onerror triggered.');
       speakOver(); // Notify parent that speech is over
       setRevealSentence(""); // Clear the displayed sentence
     };
+
+    utterThis.onend = handleSpeechEnd;
+    utterThis.onerror = handleSpeechEnd;
 
     console.log('im speaking:', text, synth);
     synth.speak(utterThis);
@@ -239,7 +252,7 @@ function Speak(props) {
       <Fade show={toSpeak} speed={'0.3s'}>
         <FullDiv $bgColor="white" />
       </Fade>
-      <InfoPage personName={`${personName} ${revealSentence}`} 
+      <InfoPage personName={`${personName}`} 
         sentence={revealSentence} 
         speakingVoice={props.nowSpeak} 
         nameColor={toSpeak ? 'black': 'white'} />

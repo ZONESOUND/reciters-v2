@@ -90,11 +90,11 @@ function SocketHandler(props) {
             console.log('Already speaking. Ignoring new request.');
             return;
         }
-        speakRef.current = true;
         console.log('Not speaking. Updating state to start speaking.', data);
         setSpeakData(data);
         setId(data.id);
         setSpeak(true);
+        speakRef.current = true;
     }, []);
 
     const handleSpeakConfig = useCallback((data) => {
