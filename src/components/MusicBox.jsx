@@ -52,13 +52,12 @@ const calculateSoundOrder = (data) => {
 };
 
 function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
-    const playersRef = useRef([]);
+    const activePlayerRef = useRef(null); // Ref to hold the currently active player instance
     const meterRef = useRef(null);
     const animationFrameId = useRef(null);
-    const nowOrderRef = useRef(0);
     const peakVolumesRef = useRef([]); // Ref to store peak volumes for each sound
     const lastProcessedRefresh = useRef(null); // Ref 來追蹤最後處理過的觸發器
-    const [isReady, setIsReady] = useState(false);
+    const [peaksReady, setPeaksReady] = useState(false);
 
     useEffect(() => {
         console.log('MusicBox: Initializing and loading sounds...');
@@ -66,16 +65,6 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         const meter = new Tone.Meter();
         meterRef.current = meter;
 
-        const players = soundFiles.map((url, ind) => {
-            // 前 4 組音效被指定為「特殊」組，並獲得淡入淡出效果。
-            const isSpecialGroup = soundStateNum.length > 4 && ind < soundStateNum[4]; // soundStateNum[4] 是第 5 組的起始索引
-            const fadeTime = isSpecialGroup ? 0.5 : 0;
-            return new Tone.Player({
-                url: url,
-                fadeOut: fadeTime,
-                fadeIn: fadeTime,
-            }).connect(meter);
-        });
         meter.toDestination();
 
         // Analyze peak volumes before setting players and readiness
@@ -92,10 +81,8 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
                 }));
                 peakVolumesRef.current = peaks;
                 console.log('MusicBox: Peak volumes analyzed:', peaks);
-
-                playersRef.current = players;
-                setIsReady(true);
-                console.log('MusicBox: All sounds loaded and ready!');
+                setPeaksReady(true);
+                console.log('MusicBox: Peak analysis complete. Ready to play.');
             } catch (error) {
                 console.error("MusicBox: Error analyzing or loading sounds", error);
             }
@@ -108,35 +95,29 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
             if (animationFrameId.current) {
                 cancelAnimationFrame(animationFrameId.current);
             }
-            playersRef.current.forEach(player => {
-                if (player && !player.disposed) {
-                    if (player.state === 'started') {
-                        player.stop();
-                    }
-                    player.dispose();
-                }
-            });
-            playersRef.current = [];
+            if (activePlayerRef.current && !activePlayerRef.current.disposed) {
+                activePlayerRef.current.stop();
+                activePlayerRef.current.dispose();
+            }
             if (meterRef.current && !meterRef.current.disposed) {
                 meterRef.current.dispose();
             }
-            setIsReady(false);
         };
     }, []);
 
-    const stopVolumeAnalysis = useCallback(() => {
+    const stopVolumeAnalysis = useCallback((resetOpacity = true) => {
         if (animationFrameId.current) {
             cancelAnimationFrame(animationFrameId.current);
             animationFrameId.current = null;
         }
-        if (onVolumeChange) {
+        if (onVolumeChange && resetOpacity) {
             onVolumeChange(0);
         }
     }, [onVolumeChange]);
 
     const startVolumeAnalysis = useCallback((peakVolume) => {
         // Stop any previous loop to be safe
-        stopVolumeAnalysis(); 
+        stopVolumeAnalysis(false); // Stop previous loop but don't reset opacity
         
         if (!onVolumeChange || !meterRef.current) return;
 
@@ -164,15 +145,13 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
     }, [onVolumeChange, stopVolumeAnalysis]);
 
     const stopAll = useCallback(() => {
-        if (!isReady) return;
-        playersRef.current.forEach((player) => {
-            if (player && player.loaded && player.state !== 'stopped') {
-                // player.stop() will trigger the onstop callback which handles analysis stopping
-                player.stop();
-            }
-        });
-        nowOrderRef.current = 0;
-    }, [isReady]); // No need to add stopVolumeAnalysis here, onstop handles it
+        const player = activePlayerRef.current;
+        if (player && player.loaded && player.state !== 'stopped') {
+            // player.stop() will trigger the onstop callback which handles analysis stopping
+            player.stop();
+        }
+        activePlayerRef.current = null;
+    }, []); // No dependencies needed
 
     useEffect(() => {
         if (stop) {
@@ -189,42 +168,65 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         }
         lastProcessedRefresh.current = refresh; // 立即更新，防止重複進入
 
-        const players = playersRef.current;
-
         const playSound = (order) => {
-            if (players[order] && players[order].loaded) {
-                console.log(`MusicBox: Playing sound ${order}`, players[order]);
-
-                // If mode is 'follow', set up volume analysis
-                const peakVolume = peakVolumesRef.current[order] || 1.0; // Fallback to 1.0
-                if (data.mode === 'follow' && onVolumeChange) {
-                    startVolumeAnalysis(peakVolume);
-                    // When the sound finishes playing naturally or is stopped, stop the analysis
-                    const onStopCallback = () => {
-                        console.log(`MusicBox: Sound ${order} stopped, stopping analysis.`);
-                        stopVolumeAnalysis();
-                    };
-                    players[order].onstop = onStopCallback;
-                }
-
-                players[order].start();
-                nowOrderRef.current = order;
-            } else {
-                console.warn(`MusicBox: Sound ${order} not loaded or does not exist!`);
+            const url = soundFiles[order];
+            if (!url) {
+                console.warn(`MusicBox: No sound file found for order ${order}`);
+                return;
             }
-        };
 
-        const setVolume = (order, volume) => {
-            if (players[order] && players[order].loaded) {
-                players[order].volume.value = volume;
+            const isSpecialGroup = soundStateNum.length > 4 && order < soundStateNum[4];
+            const fadeTime = isSpecialGroup ? 0.5 : 0;
+
+            const player = new Tone.Player({
+                url: url,
+                fadeOut: fadeTime,
+                fadeIn: fadeTime,
+                autostart: true, // Autostart after loading
+            }).connect(meterRef.current);
+
+            activePlayerRef.current = player; // Store the new player instance
+
+            player.onstop = () => {
+                console.log(`MusicBox: Sound ${order} stopped, stopping analysis.`);
+                stopVolumeAnalysis(); // This resets opacity
+                if (!player.disposed) {
+                    player.dispose();
+                }
+                if (activePlayerRef.current === player) {
+                    activePlayerRef.current = null;
+                }
+            };
+
+            // For 'follow' mode, delay starting the volume analysis
+            if (data.mode === 'follow' && onVolumeChange) {
+                 // Use a short timeout to let the audio buffer start playing,
+                 // avoiding an initial reading of -Infinity dB.
+                setTimeout(() => {
+                    // Check if this player is still the active one
+                    if (activePlayerRef.current === player && !player.disposed) {
+                        const peakVolume = peakVolumesRef.current[order] || 1.0;
+                        startVolumeAnalysis(peakVolume);
+                    }
+                }, 50);
+            }
+
+            if ('volume' in data) {
+                player.volume.value = data.volume;
             }
         };
 
         const stopNow = () => {
-            const player = players[nowOrderRef.current];
+            const player = activePlayerRef.current;
             if (player && player.loaded && player.state !== 'stopped') {
-                player.onstop = () => {}; // 在手動停止前，先移除 onstop 事件，避免觸發不必要的分析停止
-                player.stop(); // This will trigger the onstop callback, stopping analysis
+                // When interrupting a 'follow' sound with another, we must not reset the opacity.
+                // 1. Remove the onstop handler to prevent it from firing and resetting opacity.
+                // 2. Explicitly stop the analysis loop without resetting opacity.
+                player.onstop = () => {};
+                stopVolumeAnalysis(false);
+                player.stop();
+                player.dispose(); // Clean up the interrupted player
+                activePlayerRef.current = null;
             }
         };
 
@@ -234,7 +236,7 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         }
 
         // 如果元件未就緒、被停止或沒有有效資料，則不執行後續操作
-        if (!isReady || stop || !data || Object.keys(data).length === 0) {
+        if (!peaksReady || stop || !data || Object.keys(data).length === 0) {
             return;
         }
 
@@ -242,7 +244,6 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
 
         if (order !== -1) {
             stopNow(); // Stop previous sound and its analysis via onstop callback
-            if ('volume' in data) setVolume(order, data.volume);
 
             const play = () => playSound(order);
 
@@ -255,7 +256,7 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
                 play();
             }
         }
-    }, [isReady, stop, data, refresh, stopAll, onVolumeChange, startVolumeAnalysis, stopVolumeAnalysis]);
+    }, [peaksReady, stop, data, refresh, stopAll, onVolumeChange, startVolumeAnalysis, stopVolumeAnalysis]);
     return(<></>);
 }
 
