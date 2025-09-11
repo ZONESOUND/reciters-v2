@@ -56,6 +56,7 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
     const meterRef = useRef(null);
     const animationFrameId = useRef(null);
     const nowOrderRef = useRef(0);
+    const peakVolumesRef = useRef([]); // Ref to store peak volumes for each sound
     const lastProcessedRefresh = useRef(null); // Ref 來追蹤最後處理過的觸發器
     const [isReady, setIsReady] = useState(false);
 
@@ -77,14 +78,30 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         });
         meter.toDestination();
 
-        playersRef.current = players;
+        // Analyze peak volumes before setting players and readiness
+        const analyzePeaks = async () => {
+            try {
+                const peaks = await Promise.all(soundFiles.map(async (url) => {
+                    const buffer = await new Tone.Buffer().load(url);
+                    const channelData = buffer.getChannelData(0); // Analyze the first channel
+                    let max = 0;
+                    for (let i = 0; i < channelData.length; i++) {
+                        max = Math.max(max, Math.abs(channelData[i]));
+                    }
+                    return max; // Peak amplitude between 0 and 1
+                }));
+                peakVolumesRef.current = peaks;
+                console.log('MusicBox: Peak volumes analyzed:', peaks);
 
-        Tone.loaded().then(() => {
-            console.log('MusicBox: All sounds loaded and ready!');
-            setIsReady(true);
-        }).catch(error => {
-            console.error("MusicBox: Error loading sounds", error);
-        });
+                playersRef.current = players;
+                setIsReady(true);
+                console.log('MusicBox: All sounds loaded and ready!');
+            } catch (error) {
+                console.error("MusicBox: Error analyzing or loading sounds", error);
+            }
+        };
+
+        analyzePeaks();
 
         return () => {
             console.log('MusicBox: Cleaning up Tone.js players and meter...');
@@ -117,11 +134,15 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         }
     }, [onVolumeChange]);
 
-    const startVolumeAnalysis = useCallback(() => {
+    const startVolumeAnalysis = useCallback((peakVolume) => {
         // Stop any previous loop to be safe
         stopVolumeAnalysis(); 
         
         if (!onVolumeChange || !meterRef.current) return;
+
+        // Convert peak amplitude (0-1) to dB. Add a small epsilon to avoid log(0).
+        // A peak of 1.0 is 0 dB. A peak of 0.5 is approx -6 dB.
+        const maxDb = 20 * Math.log10(peakVolume + Number.EPSILON);
 
         const analyze = () => {
             if (!meterRef.current || meterRef.current.disposed) return;
@@ -129,10 +150,9 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
             // 輔助函式：將 dB 值從一個範圍映射到 0-1 的範圍
             const mapVolumeToOpacity = (db) => {
                 // 1. 定義你的音量工作範圍 (單位: dB)
-                // MIN_DB: 你認為的「靜音」閾值。值越小 (例如 -80)，對微弱聲音越敏感。
-                // MAX_DB: 你期望的音量峰值。通常設為 0。
                 const MIN_DB = -60;
-                const MAX_DB = 10;
+                // 使用從音檔分析出的動態峰值，並加上一個小的餘裕空間(e.g., 3dB)
+                const MAX_DB = maxDb;
 
                 // 2. 將 dB 值限制在你的工作範圍內
                 const clampedDb = Math.max(MIN_DB, Math.min(db, MAX_DB));
@@ -187,8 +207,9 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
                 console.log(`MusicBox: Playing sound ${order}`, players[order]);
 
                 // If mode is 'follow', set up volume analysis
+                const peakVolume = peakVolumesRef.current[order] || 1.0; // Fallback to 1.0
                 if (data.mode === 'follow' && onVolumeChange) {
-                    startVolumeAnalysis();
+                    startVolumeAnalysis(peakVolume);
                     // When the sound finishes playing naturally or is stopped, stop the analysis
                     players[order].onstop = () => {
                         console.log(`MusicBox: Sound ${order} stopped, stopping analysis.`);

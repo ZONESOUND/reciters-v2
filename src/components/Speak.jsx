@@ -60,9 +60,11 @@ function Speak(props) {
         updateVoiceList();
     }
 
-    synth.addEventListener('voiceschanged', updateVoiceList);
+    // Use onvoiceschanged for broader browser compatibility, as addEventListener
+    // is not supported on the speechSynthesis object in all browsers.
+    synth.onvoiceschanged = updateVoiceList;
     return () => {
-      synth.removeEventListener('voiceschanged', updateVoiceList);
+      synth.onvoiceschanged = null;
     };
   }, [synth]); // excludeName is a constant import
 
