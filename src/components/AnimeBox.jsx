@@ -12,11 +12,13 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 			light.color = "0,0,0";
 		}
 
-		if ("alpha" in light) {
-			alpha = light.alpha;
-		}
-		if (light.mode === "follow"){
+		if (light.mode === "follow") {
 			alpha = opacity;
+			if (typeof light.alpha === 'number') {
+				alpha *= light.alpha;
+			}
+		} else {
+			alpha = light.alpha || 0;
 		}
 
 		const toHex = (c) => Math.round(c).toString(16).padStart(2, '0');
@@ -48,10 +50,6 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 			animationTransition.delay = defaultDelaySec;
 			animationTransition.repeatDelay = defaultEndDelaySec;
 		} else if (light.mode === "follow") {
-			// 調整回 'spring' 動畫以獲得更平滑、更有機的感覺。
-			// 關鍵是調整參數以獲得理想的響應速度。
-			// - stiffness: 彈簧的「強度」。值越高，反應越快。
-			// - damping: 彈簧的「阻尼」。值越低，回彈越多。
 			animationTransition.type = "spring";
 			animationTransition.stiffness = 300;
 			animationTransition.damping = 25;

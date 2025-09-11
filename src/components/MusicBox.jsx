@@ -152,10 +152,6 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
                 const MAX_DB = maxDb;
                 const clampedDb = Math.max(MIN_DB, Math.min(db, MAX_DB));
                 const normalized = (clampedDb - MIN_DB) / (MAX_DB - MIN_DB);
-
-                // 4. (可選) 應用一個曲線來讓視覺效果更好。
-                //    例如，平方 (pow(2)) 會讓燈光對較大的聲音反應更劇烈。
-                //    你可以嘗試 1 (線性), 1.5, 2 等值來找到喜歡的效果。
                 return Math.pow(normalized, 1.8);
             };
 
