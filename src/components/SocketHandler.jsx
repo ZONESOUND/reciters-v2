@@ -77,31 +77,25 @@ function SocketHandler(props) {
         }
     }, []); // setShowForm 是穩定的
 
-    // 使用 useRef 來獲取 speak 狀態的最新值，這樣 handleSpeak 就不需要依賴 speak 狀態
-    // 確保其引用穩定，避免 useEffect 頻繁重新註冊事件監聽器
-    const speakRef = useRef(speak);
-    useEffect(() => {
-        speakRef.current = speak;
-    }, [speak]);
+    const speakRef = useRef(false);
 
     const handleSpeak = useCallback((data) => {
         console.log('handleSpeak received:', data);
 
-        // 優先檢查：如果收到的 speak 事件沒有有效的文字內容，則直接忽略。
-        // 這可以防止因空或無效的 speak 事件導致的狀態快速跳動。
         if (!data || !data.text || typeof data.text !== 'string' || data.text.trim() === '') {
             console.log('Ignoring speak event with empty or invalid text:', data);
             return;
         }
-        if (speakRef.current) { // 使用 ref 來檢查最新的 speak 狀態
+        if (speakRef.current) {
             console.log('Already speaking. Ignoring new request.');
             return;
         }
+        speakRef.current = true;
         console.log('Not speaking. Updating state to start speaking.', data);
         setSpeakData(data);
         setId(data.id);
-        setSpeak(true); // 直接設置為 true
-    }, []); // 移除 speak 依賴項，使 handleSpeak 引用穩定
+        setSpeak(true);
+    }, []);
 
     const handleSpeakConfig = useCallback((data) => {
         console.log(data);
@@ -110,7 +104,7 @@ function SocketHandler(props) {
         } else if (data.mode === 'hideForm') {
             setShowForm(false);
         } else if (data.mode === 'nowSpeak') {
-            console.log('set now speak', data.data);
+            console.log('  speak', data.data);
             setNowSpeak(data.data);
         } else if (data.mode === 'changeVoice') {
             // 廣播指令，要求所有客戶端隨機更換語音
@@ -130,10 +124,11 @@ function SocketHandler(props) {
             }
         } else if (data.mode === 'stop') {
             console.log('Received stop command. Stopping all speech.');
+            speakRef.current = false; // 立即解鎖
             setSpeak(false);
             setNowSpeak([]);
         }
-    }, [setSpeak, setShowForm, setNowSpeak, socketId]);
+    }, [socketId]); // 移除了對 setState 函式的依賴，因為它們是穩定的
 
     const handleSpeakOverAll = useCallback(() => {
         console.log('set now speak: no one');
@@ -252,17 +247,17 @@ function SocketHandler(props) {
     }, [handleControlData, handleDisconnect, handleDebug, handleSpeak, handleSpeakConfig]);
 
     const speakOver = useCallback(() => {
+        speakRef.current = false; // 立即解鎖
         setSpeak(false);
-        console.log('speak over', id, 'voice:', voice);
+        console.log('speak over, id:', id);
         if (id !== -1) {
-            // 講完話後，只回報 id。伺服器應根據先前收到的 'changeVoice' 事件來得知當前的 voice。
             emitData('speakOver', {id: id});
         }
-    }, [id]); // 現在只依賴 id。
+    }, [id]);
 
     const changeVoiceCallback = useCallback((newVoice) => {
         setVoice(newVoice);
-    }, []); // setVoice is stable
+    }, []);
     
     return (<>
         {/* Unused button: <button onClick={sendDebug}>Send Debug</button> */}
