@@ -255,11 +255,10 @@ function SocketHandler(props) {
         setSpeak(false);
         console.log('speak over', id, 'voice:', voice);
         if (id !== -1) {
-            // 透過將 id 和 voice 加入依賴陣列，這個 callback 會在其閉包中
-            // 捕獲最新的 state 值。
-            emitData('speakOver', {id: id, voice: voice});
+            // 講完話後，只回報 id。伺服器應根據先前收到的 'changeVoice' 事件來得知當前的 voice。
+            emitData('speakOver', {id: id});
         }
-    }, [id, voice]); // 依賴項確保了 callback 在資料變更時是「新鮮」的。
+    }, [id]); // 現在只依賴 id。
 
     const changeVoiceCallback = useCallback((newVoice) => {
         setVoice(newVoice);

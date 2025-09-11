@@ -149,7 +149,7 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
 
             const mapVolumeToOpacity = (db) => {
                 const MIN_DB = -60;
-                const MAX_DB = maxDb;
+                const MAX_DB = maxDb + 1;
                 const clampedDb = Math.max(MIN_DB, Math.min(db, MAX_DB));
                 const normalized = (clampedDb - MIN_DB) / (MAX_DB - MIN_DB);
                 return Math.pow(normalized, 1.8);
@@ -200,11 +200,11 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
                 if (data.mode === 'follow' && onVolumeChange) {
                     startVolumeAnalysis(peakVolume);
                     // When the sound finishes playing naturally or is stopped, stop the analysis
-                    players[order].onstop = () => {
+                    const onStopCallback = () => {
                         console.log(`MusicBox: Sound ${order} stopped, stopping analysis.`);
                         stopVolumeAnalysis();
-                        players[order].onstop = () => {}; // Reset to a no-op to prevent crashes
                     };
+                    players[order].onstop = onStopCallback;
                 }
 
                 players[order].start();
@@ -223,6 +223,7 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         const stopNow = () => {
             const player = players[nowOrderRef.current];
             if (player && player.loaded && player.state !== 'stopped') {
+                player.onstop = () => {}; // 在手動停止前，先移除 onstop 事件，避免觸發不必要的分析停止
                 player.stop(); // This will trigger the onstop callback, stopping analysis
             }
         };
