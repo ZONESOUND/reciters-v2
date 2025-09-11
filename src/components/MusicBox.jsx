@@ -147,23 +147,16 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         const analyze = () => {
             if (!meterRef.current || meterRef.current.disposed) return;
 
-            // 輔助函式：將 dB 值從一個範圍映射到 0-1 的範圍
             const mapVolumeToOpacity = (db) => {
-                // 1. 定義你的音量工作範圍 (單位: dB)
                 const MIN_DB = -60;
-                // 使用從音檔分析出的動態峰值，並加上一個小的餘裕空間(e.g., 3dB)
                 const MAX_DB = maxDb;
-
-                // 2. 將 dB 值限制在你的工作範圍內
                 const clampedDb = Math.max(MIN_DB, Math.min(db, MAX_DB));
-
-                // 3. 將被限制的 dB 值線性映射到 0-1 的範圍
                 const normalized = (clampedDb - MIN_DB) / (MAX_DB - MIN_DB);
 
                 // 4. (可選) 應用一個曲線來讓視覺效果更好。
                 //    例如，平方 (pow(2)) 會讓燈光對較大的聲音反應更劇烈。
                 //    你可以嘗試 1 (線性), 1.5, 2 等值來找到喜歡的效果。
-                return Math.pow(normalized, 2);
+                return Math.pow(normalized, 1.8);
             };
 
             const db = meterRef.current.getValue();
