@@ -66,7 +66,7 @@ function Speak(props) {
     return () => {
       synth.onvoiceschanged = null;
     };
-  }, [synth]); // excludeName is a constant import
+  }, []); // excludeName is a constant import
 
   // Cleanup effect to cancel any ongoing speech when the component unmounts.
   // This prevents orphaned speech synthesis processes.
@@ -74,7 +74,7 @@ function Speak(props) {
     return () => {
       synth.cancel();
     };
-  }, [synth]);
+  }, []);
 
   const speakTextInternal = useCallback((text, currentPitch, currentRate, selectedVoice) => {
     if (!selectedVoice) {
@@ -144,7 +144,7 @@ function Speak(props) {
       // clear the sentence that is displayed on screen.
       setRevealSentence("");
     }
-  }, [toSpeak, prevToSpeak, data, voices, voiceIndex, pitch, rate, speakTextInternal, speakOver, setPitch, setRate, synth, setRevealSentence]);
+  }, [toSpeak, prevToSpeak, data, voices, voiceIndex, pitch, rate, speakOver]);
 
   // This effect will rapidly change the voice index for a visual "shuffling" effect.
   useInterval(() => {

@@ -29,7 +29,9 @@ export let setDefaultSocket = (socket)=> {
  */
 export let connectSocket = (namespace='', fn=defaultConnectFn)=> {
 
-    let socket = io(serverHost+namespace);
+    let socket = io(serverHost+namespace, {
+        rejectUnauthorized: false,
+    });
     if (defaultSocket === undefined) defaultSocket = socket;
     console.log(socket);
     socket.on('connect', ()=> {

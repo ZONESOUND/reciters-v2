@@ -14,7 +14,7 @@ function App() {
   const [speak, setSpeak] = useState(false);
   const selectStart = async () => {
     try {
-      window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+      //window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
       await Tone.start();
       console.log("AudioContext started successfully!");
 
