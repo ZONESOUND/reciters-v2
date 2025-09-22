@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import { useInterval, usePrevious } from '../usages/tool';
 import InfoPage from './InfoPage';
 import Fade from './Fade';
@@ -46,14 +46,25 @@ function Speak(props) {
   const {toSpeak, data, speakOver, voiceCommand} = props;
   const prevToSpeak = usePrevious(toSpeak);
   const [revealSentence, setRevealSentence] = useState('');
+  const isInitialMount = useRef(true); // Ref to track the very first render cycle
+  const voicesInitialized = useRef(false); // Ref to track if the voice list has been loaded
   const [isRandomizing, setIsRandomizing] = useState(false);
 
   // Effect for initializing and updating voices
   useEffect(()=>{
     const updateVoiceList = () => {
+      // If voices have already been loaded once, ignore subsequent onvoiceschanged events.
+      // This prevents the selected voice from being reset unexpectedly.
+      if (voicesInitialized.current) {
+        console.log('onvoiceschanged fired again, but voices are already initialized. Ignoring.');
+        return;
+      }
+
       const { newVoices, newVoiceIndex } = getFilteredAndDefaultVoice(synth, excludeName);
       setVoices(newVoices);
       setVoiceIndex(newVoiceIndex);
+      voicesInitialized.current = true; // Mark as initialized
+      console.log('Voice list initialized.');
     };
 
     if (synth.getVoices().length > 0) {
@@ -155,13 +166,20 @@ function Speak(props) {
   }, isRandomizing ? 100 : null); // Runs every 100ms only when isRandomizing is true.
 
   useEffect(()=>{
-    // Only report the voice change up to the parent component when the voice has "settled",
-    // i.e., not in the middle of the randomization animation.
+    // On initial mount, the voices are set, but we don't want to report this as a "change".
+    // We use the isInitialMount ref to skip the callback on the first run.
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Report to parent only when the voice has "settled" (not randomizing)
+    // and it's not the initial mount.
     if (!isRandomizing && voices.length > 0 && voices[voiceIndex]) {
         console.log('Voice settled. Reporting to parent:', voices[voiceIndex].name);
         props.changeVoiceCallback({name:voices[voiceIndex].name, lang:voices[voiceIndex].lang});
     }
-  }, [voiceIndex, voices, props.changeVoiceCallback, isRandomizing]);
+  }, [voiceIndex, isRandomizing, props.changeVoiceCallback, voices]); // Add missing dependencies
 
   // Unified effect to handle all voice change commands from the server
   useEffect(() => {

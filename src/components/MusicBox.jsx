@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import 'standardized-audio-context';
 import * as Tone from "tone";
 
 const soundModules = import.meta.glob('../sounds/**/*.mp3', { as: 'url', eager: true });
@@ -65,7 +66,8 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         const meter = new Tone.Meter();
         meterRef.current = meter;
 
-        meter.toDestination();
+        //meter.toDestination();
+        meter.toMaster();
 
         // Analyze peak volumes before setting players and readiness
         const analyzePeaks = async () => {

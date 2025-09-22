@@ -6,7 +6,7 @@ import basicSsl from "@vitejs/plugin-basic-ssl";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), basicSsl(),
+  plugins: [react(), //basicSsl(),
     legacy({
       //targets: ['defaults', 'not IE 11'],
       targets: ['defaults', 'last 2 versions', 'Android >= 5', 'iOS >= 10', 'Safari >= 10.1'],
@@ -32,11 +32,11 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     host: true,
-    https: true
+    //https: true
   },
   preview: {
     host: true,
-    https: true,
+    //https: true,
     strictPort: true,
     port: 4173
   }

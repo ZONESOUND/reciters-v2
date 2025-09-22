@@ -9,7 +9,6 @@ function EffectBox(props) {
     const [opacity, setOpacity] = useState(0);
 
     const handleVolumeChange = useCallback((volume) => {
-        // `volume` 應該是一個 0 到 1 之間的值
         setOpacity(volume);
     }, []); // 使用 useCallback 並傳入空依賴陣列，確保此函式引用在重新渲染之間保持穩定。
 

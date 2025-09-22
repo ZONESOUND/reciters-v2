@@ -26,7 +26,6 @@ function SocketHandler(props) {
     const prevLaunch = usePrevious(launch);
     const prevStart = usePrevious(props.start);
     const hasConnectedOnceRef = useRef(false); // Ref to track if connection has been initiated
-    const hasInitializedVoice = useRef(false); // Ref to track if the voice has been set at least once
 
     //TODO: check if stageEffect are used
     //const uuidRef = useRef(sessionStorage.getItem("StageEffectUUID") || genUUID());
@@ -53,14 +52,12 @@ function SocketHandler(props) {
     // Effect to report voice changes back to the server
     useEffect(() => {
         // This effect triggers when the `voice` state is updated from the Speak component.
-        // We check `hasInitializedVoice.current` to avoid sending an event on the initial mount.
-        if (voice && hasInitializedVoice.current) {
+        // The Speak component is now responsible for only reporting meaningful changes.
+        if (voice) {
             console.log('Voice changed, reporting to server:', voice);
             emitData('speakConfig', { mode: 'changeVoice', voice: voice, socketId: socketId });
-        } else if (voice) {
-            hasInitializedVoice.current = true;
         }
-    }, [voice, socketId]); // It depends on `voice` to know when to run.
+    }, [voice]); // Only depends on `voice` to prevent re-triggering on socket reconnect
 
     // 將事件處理程序移至 useEffect 外部，並使用 useCallback 包裹，
     // 這可以確保它們在重新渲染之間保持穩定的引用，除非其依賴項發生變化。
@@ -228,7 +225,8 @@ function SocketHandler(props) {
             emitData('disconnected', { uuid: uuidRef.current });
             return event;
         };
-        window.addEventListener("beforeunload", beforeUnloadListener);
+        if (window.addEventListener)
+            window.addEventListener("beforeunload", beforeUnloadListener);
 
         return () => {
             // Cleanup: Unregister event listeners

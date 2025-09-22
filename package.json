@@ -21,8 +21,9 @@
     "react-router-dom": "^7.6.2",
     "siriwave": "^2.4.0",
     "socket.io-client": "^4.8.1",
+    "standardized-audio-context": "^25.3.77",
     "styled-components": "^6.1.19",
-    "tone": "^15.1.22"
+    "tone": "^13.8.34"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
