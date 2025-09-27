@@ -35,7 +35,7 @@ const { soundFiles, soundStateNum } = getSoundAssets();
  */
 const calculateSoundOrder = (data) => {
     if (!data.set || data.set <= 0 || data.set >= soundStateNum.length) {
-        data.set = 1;
+        return -1;
     }
 
     const baseIndex = soundStateNum[data.set - 1];
