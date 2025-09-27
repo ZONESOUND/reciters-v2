@@ -122,7 +122,6 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         stopVolumeAnalysis(false); // Stop previous loop but don't reset opacity
         
         if (!onVolumeChange || !meterRef.current) return;
-
         // Convert peak amplitude (0-1) to dB. Add a small epsilon to avoid log(0).
         // A peak of 1.0 is 0 dB. A peak of 0.5 is approx -6 dB.
         const maxDb = 20 * Math.log10(peakVolume + Number.EPSILON);
@@ -131,6 +130,7 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
             if (!meterRef.current || meterRef.current.disposed) return;
 
             const mapVolumeToOpacity = (db) => {
+                
                 const MIN_DB = -60;
                 const MAX_DB = maxDb + 1;
                 const clampedDb = Math.max(MIN_DB, Math.min(db, MAX_DB));
@@ -138,7 +138,7 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
                 return Math.pow(normalized, 1.8);
             };
 
-            const db = meterRef.current.getValue();
+            const db = meterRef.current.getLevel();
             const volume = mapVolumeToOpacity(db);
             onVolumeChange(volume);
             animationFrameId.current = requestAnimationFrame(analyze);
