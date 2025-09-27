@@ -141,7 +141,7 @@ function SocketHandler(props) {
             if ("color" in light) {
                 if (light.color === "*") delete light.color;
             }
-            light.delay = Math.random() * light.delay;
+            light.deviation = Math.random() * light.deviation;
             console.log('[handleLightDataInternal] light:', light);
             return light;
         };
@@ -160,8 +160,8 @@ function SocketHandler(props) {
                     light.color = rgbColors[sound.order % rgbColors.length];
                 }
             }
-            if ("delay" in light && "order" in sound) {
-                sound.delayFix = light.delay;
+            if ("deviation" in light && "order" in sound) {
+                sound.delayFix = light.deviation;
             }
             if ("mode" in light && "order" in sound) {
                 sound.mode = light.mode;
