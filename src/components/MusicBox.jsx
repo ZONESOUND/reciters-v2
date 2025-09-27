@@ -35,12 +35,13 @@ const { soundFiles, soundStateNum } = getSoundAssets();
  */
 const calculateSoundOrder = (data) => {
     if (!data.set || data.set <= 0 || data.set >= soundStateNum.length) {
-        return -1;
+        data.set = 1;
     }
 
+    const baseIndex = soundStateNum[data.set - 1];
     let order = -1;
+
     if ('order' in data) {
-        const baseIndex = soundStateNum[data.set - 1];
         if (data.orderTo && data.orderTo > data.order) {
             const range = data.orderTo - data.order;
             order = data.order + Math.floor(Math.random() * range);
@@ -48,6 +49,12 @@ const calculateSoundOrder = (data) => {
             order = data.order;
         }
         order += baseIndex;
+    } else {
+        const endIndex = soundStateNum[data.set];
+        const setSize = endIndex - baseIndex;
+        if (setSize > 0) {
+            order = baseIndex + Math.floor(Math.random() * setSize);
+        }
     }
     return (order >= 0 && order < soundFiles.length) ? order : -1;
 };
