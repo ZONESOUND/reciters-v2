@@ -30,15 +30,16 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 
 		const animationTransition = {};
 
-		const defaultDurationSec = (light.duration || 500) / 1000;
-		const defaultDelaySec = (light.delay || 0) / 1000;
-		const defaultEndDelaySec = (light.endDelay || 0) / 1000;
+		const defaultDurationSec = (light.attack || 500) / 1000;
+		const defaultDelaySec = (light.deviation || 0) / 1000;
+		const defaultEndDelaySec = (light.sustain || 0) / 1000;
+
 
 		if (light.mode === "blink") {
 			animationTransition.duration = defaultDurationSec;
 			animationTransition.ease = "easeInOut";
 			animationTransition.repeatType = "reverse"; 
-			animationTransition.repeat = (light.loopTime ? light.loopTime * 2 : 1) - 1;
+			animationTransition.repeat = (light.repeat ? light.repeat * 2 : 1) - 1;
 			animationTransition.repeat = Math.max(0, animationTransition.repeat);
 			animationTransition.delay = defaultDelaySec;
 			animationTransition.repeatDelay = defaultEndDelaySec;
@@ -46,7 +47,7 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 			animationTransition.duration = defaultDurationSec;
 			animationTransition.ease = "easeInOut";
 			animationTransition.repeatType = "loop"; 
-			animationTransition.repeat = (light.loopTime || 1) - 1;
+			animationTransition.repeat = (light.repeat || 1) - 1;
 			animationTransition.repeat = Math.max(0, animationTransition.repeat);
 			animationTransition.delay = defaultDelaySec;
 			animationTransition.repeatDelay = defaultEndDelaySec;
