@@ -125,8 +125,8 @@ function SocketHandler(props) {
             setSpeak(false);
             setNowSpeak([]);
         }
-    }, [socketId]); // 移除了對 setState 函式的依賴，因為它們是穩定的
-
+    }, [socketId]); 
+    
     const handleSpeakOverAll = useCallback(() => {
         console.log('set now speak: no one');
         setNowSpeak([]);
