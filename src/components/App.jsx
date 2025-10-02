@@ -73,30 +73,11 @@ function App() {
       await Tone.start();
       console.log("AudioContext started successfully!");
 
-      // 建立一個 synth 物件
-      // const synth = new Tone.Synth().toDestination();
-      // synth.triggerAttackRelease("C4", "8n");
-      const synth = new Tone.Synth().toMaster(); // 13 沒有 toDestination，要用 toMaster()
+      const synth = new Tone.Synth().toMaster();
       synth.triggerAttackRelease("C4", "8n");
       setLanding(false);
       setSpeak(true);
-      
-      // // 在 Tone.js 的時間軸上安排事件
-      // Tone.Transport.scheduleOnce((time) => {
-      //   // 在 'time' 這個精確的時間點播放聲音
-      //   synth.triggerAttackRelease("C4", "8n", time);
-      // }, 0); // 0 表示立即
-
-      // 在音符播放結束後（"8n" 之後）安排下一個事件
-      // Tone.Transport.scheduleOnce(() => {
-      //   console.log("Test synth finished playing, now loading main components.");
-      //   setLanding(false);
-      //   setSpeak(true);
-      //   synth.dispose(); // 清理 synth
-      // }, "8n"); // "8n" 表示一個八分音符的時長
-
-      // // 啟動 Transport
-      // Tone.Transport.start();
+  
     } catch (e) {
       console.error("Could not start AudioContext: ", e);
     }

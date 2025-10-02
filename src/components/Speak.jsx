@@ -160,14 +160,11 @@ function Speak(props) {
   // This effect will rapidly change the voice index for a visual "shuffling" effect.
   useInterval(() => {
     if (voices.length > 0) {
-        const newIndex = Math.floor(Math.random() * voices.length);
-        setVoiceIndex(newIndex);
+        setVoiceIndex(Math.floor(Math.random() * voices.length));
     }
   }, isRandomizing ? 100 : null); // Runs every 100ms only when isRandomizing is true.
 
   useEffect(()=>{
-    // On initial mount, the voices are set, but we don't want to report this as a "change".
-    // We use the isInitialMount ref to skip the callback on the first run.
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
@@ -176,10 +173,10 @@ function Speak(props) {
     // Report to parent only when the voice has "settled" (not randomizing)
     // and it's not the initial mount.
     if (!isRandomizing && voices.length > 0 && voices[voiceIndex]) {
-        console.log('Voice settled. Reporting to parent:', voices[voiceIndex].name);
+        console.log('Voice changed. Reporting to parent:', voices[voiceIndex].name);
         props.changeVoiceCallback({name:voices[voiceIndex].name, lang:voices[voiceIndex].lang});
     }
-  }, [voiceIndex, isRandomizing, props.changeVoiceCallback, voices]); // Add missing dependencies
+  }, [voiceIndex, isRandomizing]);
 
   // Unified effect to handle all voice change commands from the server
   useEffect(() => {
@@ -189,59 +186,50 @@ function Speak(props) {
 
     const { value } = voiceCommand;
 
-    // Always start the randomization animation for visual feedback.
     setIsRandomizing(true);
 
     const animationTimer = setTimeout(() => {
-        // First, stop the randomization animation. This will cause a re-render
-        // which in turn stops the `useInterval` hook from firing again.
         setIsRandomizing(false);
         console.log('Voice selection animation stopped.');
 
-        // By using a minimal timeout, we schedule the final voice selection to happen
-        // *after* the re-render that stops the animation. This prevents a race condition
-        // where the interval could fire one last time and override our specific selection.
         setTimeout(() => {
-            // If a specific voice was requested, set it now.
-            // If the command was 'random', we do nothing, leaving the last randomly selected voice.
             if (typeof value === 'object' && value !== null) {
                 const { name, lang } = value;
-                let newIndex = -1;
+                let newIndex = -1
 
-                if (name && lang) {
-                    console.log(`Searching for voice with name "${name}" AND lang "${lang}".`);
-                    newIndex = voices.findIndex(v => v.name === name && v.lang === lang);
-                } else if (name) {
-                    console.log(`Searching for a random voice containing the name "${name}".`);
-                    const matchingVoices = voices.filter(v => v.name.includes(name));
-                    if (matchingVoices.length > 0) {
-                        // Select a random voice from the filtered list
-                        const randomMatchingVoice = matchingVoices[Math.floor(Math.random() * matchingVoices.length)];
-                        // Find the index of the randomly selected voice in the original voices array
-                        newIndex = voices.indexOf(randomMatchingVoice);
-                    }
-                } else if (lang) {
-                    console.log(`Searching for a random voice with lang "${lang}".`);
-                    const matchingVoices = voices.filter(v => v.lang === lang);
-                    if (matchingVoices.length > 0) {
-                        const randomMatchingVoice = matchingVoices[Math.floor(Math.random() * matchingVoices.length)];
-                        newIndex = voices.indexOf(randomMatchingVoice);
-                    }
+                let matchingVoices = voices;
+                if (name) {
+                    console.log(`Filtering by name containing "${name}".`);
+                    matchingVoices = matchingVoices.filter(v => v.name.includes(name));
+                    console.log('name', matchingVoices);
+                }
+                if (lang) {
+                    console.log(`Filtering by lang equal to "${lang}".`);
+                    matchingVoices = matchingVoices.filter(v => v.lang === lang);
+                    console.log(matchingVoices);
+                }
+
+                if (matchingVoices.length > 0) {
+                    const randomMatchingVoice = matchingVoices[Math.floor(Math.random() * matchingVoices.length)];
+                    newIndex = voices.indexOf(randomMatchingVoice);
                 }
 
                 if (newIndex !== -1) {
                     console.log(`Found matching voice at index ${newIndex}. Setting it now.`);
+                    const newVoice = voices[newIndex];
                     setVoiceIndex(newIndex);
+                    console.log('Voice assigned by command. Reporting to parent:', newVoice.name);
+                    props.changeVoiceCallback({name: newVoice.name, lang: newVoice.lang});
                 } else {
                     console.warn(`No voice found matching criteria: ${JSON.stringify(value)}`);
                 }
             }
-        }, 10); // A small delay is enough to push this to the next event loop tick.
-    }, 1000); // Animation duration: 1 second.
+        }, 10);
+    }, 1000);
 
     // Cleanup function to clear the timer if the component unmounts or the command changes.
     return () => clearTimeout(animationTimer);
-  }, [voiceCommand, voices]);
+  }, [voiceCommand, voices, props.changeVoiceCallback]); // Keep changeVoiceCallback in dependencies
 
   let submitSpeak = (event) => {
     event.preventDefault();

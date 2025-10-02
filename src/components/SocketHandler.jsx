@@ -3,9 +3,8 @@ import {connectSocket, onSocket, emitData, offSocket } from '@/usages/socketUsag
 import Speak from './Speak';
 import Fade from './Fade';
 import EffectBox from './EffectBox';
-import {usePrevious, useInterval, genUUID, jsonCopy} from '@/usages/tool';
+import {usePrevious, genUUID, jsonCopy} from '@/usages/tool';
 import {FullDiv} from '@/usages/cssUsage';
-//import MusicBoxMin from './MusicBox';
 
 function SocketHandler(props) {
     const [speak, setSpeak] = useState(false);
@@ -26,7 +25,7 @@ function SocketHandler(props) {
 
     const prevLaunch = usePrevious(launch);
     const prevStart = usePrevious(props.start);
-    const hasConnectedOnceRef = useRef(false); // Ref to track if connection has been initiated
+    const hasConnectedOnceRef = useRef(false); 
 
     //TODO: check if stageEffect are used
     //const uuidRef = useRef(sessionStorage.getItem("StageEffectUUID") || genUUID());
@@ -36,48 +35,32 @@ function SocketHandler(props) {
         idRef.current = id;
     }, [id]);
 
-    // Effect to emit voice config when launch transitions from true to false
+    // trigger random voice selection
     useEffect(() => {
-        // Only emit when launch just became false (was true previously) and voice is set
-        if (prevLaunch === true && !launch && voice) {
-            console.log('emit voice!');
-            emitData('speakConfig', {mode: 'changeVoice', voice: voice});
-        }
-    }, [launch, prevLaunch, voice]);
-
-    // Effect to trigger random voice selection when the component starts
-    useEffect(() => {
-        // Trigger on the rising edge of the `start` prop
         if (props.start && !prevStart) {
             console.log('Start prop became true, triggering random voice selection.');
             setVoiceCommand({ value: 'random', trigger: Date.now() });
         }
     }, [props.start, prevStart]);
 
-    // Effect to report voice changes back to the server
+    // report voice changes back to the server
     useEffect(() => {
-        // This effect triggers when the `voice` state is updated from the Speak component.
-        // The Speak component is now responsible for only reporting meaningful changes.
         if (voice) {
             console.log('Voice changed, reporting to server:', voice);
             emitData('speakConfig', { mode: 'changeVoice', voice: voice, socketId: socketId });
         }
-    }, [voice]); // Only depends on `voice` to prevent re-triggering on socket reconnect
-
-    // 將事件處理程序移至 useEffect 外部，並使用 useCallback 包裹，
-    // 這可以確保它們在重新渲染之間保持穩定的引用，除非其依賴項發生變化。
-    // 這是處理 React 中副作用（如設置監聽器）的最佳實踐。
+    }, [voice]);
 
     const handleDisconnect = useCallback(() => {
         setSocketConnect(false);
-    }, []); // setSocketConnect 是穩定的
+    }, []);
 
     const handleDebug = useCallback((data) => {
         console.log(data);
         if (data.mode === 'showForm') {
             setShowForm(data.value);
         }
-    }, []); // setShowForm 是穩定的
+    }, []);
 
     const speakRef = useRef(false);
 
@@ -100,7 +83,6 @@ function SocketHandler(props) {
     }, []);
 
     const handleSpeakConfig = useCallback((data) => {
-        console.log(data);
         if (data.mode === 'showForm') {
             setShowForm(true);
         } else if (data.mode === 'hideForm') {
@@ -112,14 +94,13 @@ function SocketHandler(props) {
             setVoiceCommand({ value: 'random', trigger: Date.now() });
         } else if (data.mode === 'assignVoice') {
             if (!data.socketId || data.socketId == '*' || data.socketId === socketId) {
-                const target = !data.socketId || data.socketId === '*' ? 'all clients' : 'this client';
                 const commandPayload = {
-                    name: data.voice, // 'voice' 屬性被視為語音名稱
-                    lang: data.lang   // 'lang' 屬性是語言代碼
+                    name: data.voice, 
+                    lang: data.lang
                 };
-
-                Object.keys(commandPayload).forEach(key => (commandPayload[key] === undefined || commandPayload[key] == '*') && delete commandPayload[key]);
-                console.log(`Assigning voice with criteria: ${JSON.stringify(commandPayload)} to ${target}.`);
+                if (commandPayload.name == undefined || commandPayload.name == '*') delete commandPayload.name;
+                if (commandPayload.lang == undefined || commandPayload.lang == '*') delete commandPayload.lang;
+                console.log(`Assigning voice with criteria: ${JSON.stringify(commandPayload)}.`);
                 setVoiceCommand({ value: commandPayload, trigger: Date.now() });
             }
         } else if (data.mode === 'stop') {
@@ -256,7 +237,7 @@ function SocketHandler(props) {
             emitData('speakOver', {id: currentId});
         }
     }, []); 
-    
+
     const changeVoiceCallback = useCallback((newVoice) => {
         setVoice(newVoice);
     }, []);
