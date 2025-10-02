@@ -143,7 +143,7 @@ function SocketHandler(props) {
             if ("deviation" in light && "order" in sound) {
                 sound.delayFix = light.deviation;
             }
-            if ("mode" in light && "order" in sound) {
+            if ("mode" in light && "set" in sound && sound.set > 0) {
                 sound.mode = light.mode;
             }
             if ("mode" in light && "stop" in sound) {

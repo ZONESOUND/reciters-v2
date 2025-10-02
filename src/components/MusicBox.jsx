@@ -125,12 +125,8 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
     }, [onVolumeChange]);
 
     const startVolumeAnalysis = useCallback((peakVolume) => {
-        // Stop any previous loop to be safe
-        stopVolumeAnalysis(false); // Stop previous loop but don't reset opacity
-        
+        stopVolumeAnalysis(false);
         if (!onVolumeChange || !meterRef.current) return;
-        // Convert peak amplitude (0-1) to dB. Add a small epsilon to avoid log(0).
-        // A peak of 1.0 is 0 dB. A peak of 0.5 is approx -6 dB.
         const maxDb = 20 * Math.log10(peakVolume + Number.EPSILON);
 
         const analyze = () => {
@@ -168,14 +164,13 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
     }, [stop, stopAll]);
 
     useEffect(() => {
-        console.log('music box, data', data);
+
         if (refresh === lastProcessedRefresh.current) {
             return;
         }
         lastProcessedRefresh.current = refresh;
 
         const playSound = (order) => {
-            console.log('playing', order);
             const url = soundFiles[order];
             if (!url) {
                 console.warn(`MusicBox: No sound file found for order ${order}`);
@@ -185,18 +180,27 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
             const isSpecialGroup = soundStateNum.length > 4 && order < soundStateNum[4];
             const fadeTime = isSpecialGroup ? 0.5 : 0;
 
+            const volumeNode = new Tone.Volume();
+            if ('volume' in data) {
+                volumeNode.volume.value = data.volume;
+            }
+
             const player = new Tone.Player({
                 url: url,
                 fadeOut: fadeTime,
                 fadeIn: fadeTime,
                 autostart: true,
-            }).connect(meterRef.current);
+            }).chain(volumeNode, meterRef.current);
 
-            activePlayerRef.current = player; // Store the new player instance
+
+            activePlayerRef.current = player;
 
             player.onstop = () => {
                 console.log(`MusicBox: Sound ${order} stopped, stopping analysis.`);
-                stopVolumeAnalysis(); // This resets opacity
+                stopVolumeAnalysis(); 
+                if (!volumeNode.disposed) {
+                    volumeNode.dispose();
+                }
                 if (!player.disposed) {
                     player.dispose();
                 }
@@ -205,50 +209,38 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
                 }
             };
 
-            // For 'follow' mode, delay starting the volume analysis
             if (data.mode === 'follow' && onVolumeChange) {
-                 // Use a short timeout to let the audio buffer start playing,
-                 // avoiding an initial reading of -Infinity dB.
+                console.log('follow mode');
                 setTimeout(() => {
-                    // Check if this player is still the active one
                     if (activePlayerRef.current === player && !player.disposed) {
                         const peakVolume = peakVolumesRef.current[order] || 1.0;
                         startVolumeAnalysis(peakVolume);
                     }
                 }, 50);
             }
-
-            if ('volume' in data) {
-                player.volume.value = data.volume;
-            }
         };
 
         const stopNow = () => {
             const player = activePlayerRef.current;
             if (player && player.loaded && player.state !== 'stopped') {
-                // When interrupting a 'follow' sound with another, we must not reset the opacity.
-                // 1. Remove the onstop handler to prevent it from firing and resetting opacity.
-                // 2. Explicitly stop the analysis loop without resetting opacity.
                 player.onstop = () => {};
                 stopVolumeAnalysis(false);
                 player.stop();
-                player.dispose(); // Clean up the interrupted player
+                player.dispose();
                 activePlayerRef.current = null;
             }
         };
 
         if (data.stop && data.stop !== '*') {
             stopAll();
-            return; // 處理完畢，提前退出
+            return;
         }
 
-        // 如果元件未就緒、被停止或沒有有效資料，則不執行後續操作
         if (!peaksReady || stop || !data || Object.keys(data).length === 0) {
             return;
         }
 
         const order = calculateSoundOrder(data);
-        console.log('calculate order', order);
 
         if (order !== -1) {
             stopNow(); 
