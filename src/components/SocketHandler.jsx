@@ -10,7 +10,8 @@ import {FullDiv} from '@/usages/cssUsage';
 function SocketHandler(props) {
     const [speak, setSpeak] = useState(false);
     const [id, setId] = useState(-1);
-    const [socketId, setSocketId] = useState(null); // State to store our own socket ID
+    const idRef = useRef(id);
+    const [socketId, setSocketId] = useState(null); 
     const [launch, setLaunch] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [speakData, setSpeakData] = useState({});
@@ -30,6 +31,10 @@ function SocketHandler(props) {
     //TODO: check if stageEffect are used
     //const uuidRef = useRef(sessionStorage.getItem("StageEffectUUID") || genUUID());
     const uuidRef = useRef(genUUID());
+
+    useEffect(() => {
+        idRef.current = id;
+    }, [id]);
 
     // Effect to emit voice config when launch transitions from true to false
     useEffect(() => {
@@ -104,10 +109,8 @@ function SocketHandler(props) {
             console.log('  speak', data.data);
             setNowSpeak(data.data);
         } else if (data.mode === 'changeVoice') {
-            // 廣播指令，要求所有客戶端隨機更換語音
             setVoiceCommand({ value: 'random', trigger: Date.now() });
         } else if (data.mode === 'assignVoice') {
-            // 指派特定語音給單一或所有客戶端
             if (!data.socketId || data.socketId == '*' || data.socketId === socketId) {
                 const target = !data.socketId || data.socketId === '*' ? 'all clients' : 'this client';
                 const commandPayload = {
@@ -121,7 +124,7 @@ function SocketHandler(props) {
             }
         } else if (data.mode === 'stop') {
             console.log('Received stop command. Stopping all speech.');
-            speakRef.current = false; // 立即解鎖
+            speakRef.current = false;
             setSpeak(false);
             setNowSpeak([]);
         }
@@ -247,12 +250,13 @@ function SocketHandler(props) {
     const speakOver = useCallback(() => {
         speakRef.current = false; // 立即解鎖
         setSpeak(false);
-        console.log('speak over, id:', id);
-        if (id !== -1) {
-            emitData('speakOver', {id: id});
+        const currentId = idRef.current; // Read the latest id from the ref
+        console.log('speak over, id:', currentId);
+        if (currentId !== -1) {
+            emitData('speakOver', {id: currentId});
         }
-    }, [id]);
-
+    }, []); 
+    
     const changeVoiceCallback = useCallback((newVoice) => {
         setVoice(newVoice);
     }, []);
