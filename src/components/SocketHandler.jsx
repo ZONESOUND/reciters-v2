@@ -135,12 +135,12 @@ function SocketHandler(props) {
             if (!("color" in light) && JSON.stringify(light) !== "{}" && "order" in sound) {
                 light.color = rgbColors[sound.order % rgbColors.length];
             }
-            if ("color" in light && "order" in sound) {
+            if ("color" in light && "set" in sound && sound.set > 0) {
                 if (light.color === "*") {
                     light.color = rgbColors[sound.order % rgbColors.length];
                 }
             }
-            if ("deviation" in light && "order" in sound) {
+            if ("deviation" in light && "set" in sound && sound.set > 0) {
                 sound.delayFix = light.deviation;
             }
             if ("mode" in light && "set" in sound && sound.set > 0) {
