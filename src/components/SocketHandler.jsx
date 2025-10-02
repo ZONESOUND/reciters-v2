@@ -118,8 +118,6 @@ function SocketHandler(props) {
 
     const handleControlData = useCallback((data) => {
         const rgbColors = ["255, 255, 255"];
-        //TODO: set rgbColors anywhere?
-        console.log(data);
         const handleLightDataInternal = (light) => {
             if (light.mode === "none") return {};
             if ("color" in light) {
@@ -133,8 +131,6 @@ function SocketHandler(props) {
         const handleSocketDataInternal = (d) => {
             var sound = 'sound' in d && d.sound !== '*' ? d.sound : {};
             var light = 'light' in d && d.light !== '*' ? handleLightDataInternal(d.light) : {};
-            console.log('[handleSocketDataInternal] light:', light);
-            console.log('[handleSocketDataInternal] sound:', sound);
 
             if (!("color" in light) && JSON.stringify(light) !== "{}" && "order" in sound) {
                 light.color = rgbColors[sound.order % rgbColors.length];
@@ -163,16 +159,11 @@ function SocketHandler(props) {
             setRefreshMusic(prev => !prev);
         }
         if (JSON.stringify(light) !== "{}") {
-            // The redundant call to setSoundData is removed.
-            // The `sound` state is already correctly handled by the block above.
-            // This prevents the effect in MusicBox from being triggered a second time.
             setLightData(jsonCopy(light));
             setRefreshAnime(prev => !prev);
         }
-    }, []); // Empty dependency array as it doesn't depend on props or state
-    
-    // 使用 useMemo 建立一個衍生的「其他」發言者列表。
-    // 這個列表只會在 nowSpeak 或我們自己的 socketId 改變時重新計算。
+    }, []); 
+
     const otherSpeakers = useMemo(() => {
         console.log(socketId, nowSpeak)
         if (!socketId || !nowSpeak) return [];

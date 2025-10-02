@@ -6,7 +6,7 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 	const controls = useAnimationControls();
 	const prevModeRef = useRef();
 	const { animate, transition } = useMemo(() => {
-		const light = { ...data };
+		const light = { repeat: 1,...data };
 		let alpha = 0;
 
 		if (!light.color) {
@@ -19,7 +19,7 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 				alpha *= light.alpha;
 			}
 		} else {
-			alpha = light.alpha || 0;
+			alpha = light.alpha || 1;
 		}
 
 		const toHex = (c) => Math.round(c).toString(16).padStart(2, '0');

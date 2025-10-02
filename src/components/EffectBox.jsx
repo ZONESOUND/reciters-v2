@@ -10,7 +10,7 @@ function EffectBox(props) {
 
     const handleVolumeChange = useCallback((volume) => {
         setOpacity(volume);
-    }, []); // 使用 useCallback 並傳入空依賴陣列，確保此函式引用在重新渲染之間保持穩定。
+    }, []);
 
     return (
         <div id="wrap">

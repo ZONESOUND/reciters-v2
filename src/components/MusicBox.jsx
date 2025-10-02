@@ -156,7 +156,6 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
     const stopAll = useCallback(() => {
         const player = activePlayerRef.current;
         if (player && player.loaded && player.state !== 'stopped') {
-            // player.stop() will trigger the onstop callback which handles analysis stopping
             player.stop();
         }
         activePlayerRef.current = null;
@@ -169,15 +168,14 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
     }, [stop, stopAll]);
 
     useEffect(() => {
-        // 這個防護是解決重複觸發迴圈的關鍵。
-        // Effect 仍然會在每次渲染時運行（因為 `data` 是一個物件），
-        // 但這個檢查確保了只有在 `refresh` prop 真正改變時，聲音播放邏輯才會執行。
+        console.log('music box, data', data);
         if (refresh === lastProcessedRefresh.current) {
             return;
         }
-        lastProcessedRefresh.current = refresh; // 立即更新，防止重複進入
+        lastProcessedRefresh.current = refresh;
 
         const playSound = (order) => {
+            console.log('playing', order);
             const url = soundFiles[order];
             if (!url) {
                 console.warn(`MusicBox: No sound file found for order ${order}`);
@@ -191,7 +189,7 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
                 url: url,
                 fadeOut: fadeTime,
                 fadeIn: fadeTime,
-                autostart: true, // Autostart after loading
+                autostart: true,
             }).connect(meterRef.current);
 
             activePlayerRef.current = player; // Store the new player instance
@@ -250,13 +248,12 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         }
 
         const order = calculateSoundOrder(data);
+        console.log('calculate order', order);
 
         if (order !== -1) {
-            stopNow(); // Stop previous sound and its analysis via onstop callback
-
+            stopNow(); 
             const play = () => playSound(order);
 
-            // 優先使用從 light effect 同步過來的精確延遲 (delayFix)，若無則使用自身的隨機延遲
             if (typeof data.delayFix === 'number') {
                 setTimeout(play, data.delayFix);
             } else if (data.delay > 0) {
