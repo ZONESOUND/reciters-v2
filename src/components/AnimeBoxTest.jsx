@@ -1,8 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import AnimeBox from './AnimeBox';
-//import '../css/AnimeBox.css'; // 確保 AnimeBox 的樣式被載入
 
-// 測試頁面佈局的基礎樣式
 const styles = {
     container: {
         display: 'flex',
@@ -28,7 +26,7 @@ const styles = {
         justifyContent: 'center',
         alignItems: 'center',
         border: '1px solid #eee',
-        position: 'relative', // 為了讓 AnimeBox 的 absolute 定位生效
+        position: 'relative', 
     },
     controlGroup: {
         display: 'flex',
@@ -61,31 +59,27 @@ const styles = {
 };
 
 function AnimeBoxTest() {
-    // State for the form controls. This is our "draft" or "staged" state.
     const [formData, setFormData] = useState({
         mode: 'blink',
-        color: '255, 105, 180', // Hot pink
+        color: '255, 105, 180', 
         alpha: 1,
         duration: 500,
         delay: 0,
         endDelay: 500,
         loopTime: 1,
-        noise: true, // 預設開啟以顯示新控制項
-        noiseIntensity: 0.1, // 預設強度
-        noiseSize: 150, // 預設顆粒大小
+        noise: true, 
+        noiseIntensity: 0.1,
+        noiseSize: 150,
 
     });
     const [formOpacity, setFormOpacity] = useState(0.5);
 
-    // State that is actually passed to AnimeBox. This is our "committed" state.
-    // It only updates when the button is clicked.
     const [activeData, setActiveData] = useState(null);
     const [activeOpacity, setActiveOpacity] = useState(formOpacity);
 
     const [refresh, setRefresh] = useState(false);
     
     const handleDataChange = useCallback((e) => {
-        // 處理 checkbox 的 checked 屬性
         const { name, value, type, checked } = e.target;
         setFormData(prevData => ({
             ...prevData,
@@ -94,12 +88,10 @@ function AnimeBoxTest() {
         }));
     }, []);
 
-    // When the button is clicked, commit the form state to the active state
-    // that gets passed to AnimeBox.
     const handleRefresh = () => {
         setActiveData(formData);
         setActiveOpacity(formOpacity);
-        setRefresh(r => !r); // Toggle refresh to force re-animation
+        setRefresh(r => !r);
     };
 
     return (
@@ -156,7 +148,6 @@ function AnimeBoxTest() {
                 </div>
 
 
-                {/* 僅在 noise 特效啟用時顯示相關控制項 */}
                 {formData.noise && (
                     <>
                         <div style={styles.controlGroup}>
@@ -183,7 +174,6 @@ function AnimeBoxTest() {
             </div>
 
             <div style={styles.preview}>
-                {/* Only render AnimeBox if data has been committed at least once */}
                 {activeData ? (
                     <AnimeBox data={activeData} opacity={activeOpacity} refresh={refresh} />
                 ) : (

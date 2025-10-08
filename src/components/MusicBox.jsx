@@ -29,9 +29,8 @@ const getSoundAssets = () => {
 const { soundFiles, soundStateNum } = getSoundAssets();
 
 /**
- * 根據傳入的指令資料計算最終的音效索引。
- * @param {object} data - 包含播放指令的物件。
- * @returns {number} - 計算後的音效索引，如1果無效則返回 -1。
+ * @param {object} data
+ * @returns {number}
  */
 const calculateSoundOrder = (data) => {
     if (!data.set || data.set <= 0 || data.set >= soundStateNum.length) {
@@ -60,11 +59,11 @@ const calculateSoundOrder = (data) => {
 };
 
 function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
-    const activePlayerRef = useRef(null); // Ref to hold the currently active player instance
+    const activePlayerRef = useRef(null); 
     const meterRef = useRef(null);
     const animationFrameId = useRef(null);
-    const peakVolumesRef = useRef([]); // Ref to store peak volumes for each sound
-    const lastProcessedRefresh = useRef(null); // Ref 來追蹤最後處理過的觸發器
+    const peakVolumesRef = useRef([]); 
+    const lastProcessedRefresh = useRef(null);
     const [peaksReady, setPeaksReady] = useState(false);
 
     useEffect(() => {
@@ -73,20 +72,18 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
         const meter = new Tone.Meter();
         meterRef.current = meter;
 
-        //meter.toDestination();
         meter.toMaster();
 
-        // Analyze peak volumes before setting players and readiness
         const analyzePeaks = async () => {
             try {
                 const peaks = await Promise.all(soundFiles.map(async (url) => {
                     const buffer = await new Tone.Buffer().load(url);
-                    const channelData = buffer.getChannelData(0); // Analyze the first channel
+                    const channelData = buffer.getChannelData(0);
                     let max = 0;
                     for (let i = 0; i < channelData.length; i++) {
                         max = Math.max(max, Math.abs(channelData[i]));
                     }
-                    return max; // Peak amplitude between 0 and 1
+                    return max;
                 }));
                 peakVolumesRef.current = peaks;
                 console.log('MusicBox: Peak volumes analyzed:', peaks);
@@ -155,7 +152,7 @@ function MusicBoxMin({ stop, refresh, data, onVolumeChange }) {
             player.stop();
         }
         activePlayerRef.current = null;
-    }, []); // No dependencies needed
+    }, []);
 
     useEffect(() => {
         if (stop) {

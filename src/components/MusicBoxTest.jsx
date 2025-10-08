@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import MusicBoxMin from './MusicBox';
 
-// 為了風格一致，重複使用 AnimeBoxTest 的樣式
 const styles = {
     container: {
         display: 'flex',

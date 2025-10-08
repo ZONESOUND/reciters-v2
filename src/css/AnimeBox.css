@@ -33,8 +33,6 @@
     left: -100%;
     pointer-events: none;
 
-    /* --- 動態雜訊生成 --- */
-    /* CSS 變數的預設值 */
     --noise-intensity: 0.3;
     --noise-size: 320px;
 

@@ -35,7 +35,6 @@ function SocketHandler(props) {
         idRef.current = id;
     }, [id]);
 
-    // trigger random voice selection
     useEffect(() => {
         if (props.start && !prevStart) {
             console.log('Start prop became true, triggering random voice selection.');
@@ -43,7 +42,6 @@ function SocketHandler(props) {
         }
     }, [props.start, prevStart]);
 
-    // report voice changes back to the server
     useEffect(() => {
         if (voice) {
             console.log('Voice changed, reporting to server:', voice);
@@ -172,11 +170,10 @@ function SocketHandler(props) {
     }, [nowSpeak, socketId]);
 
     useEffect(()=> {
-        // Socket connection: Use ref to prevent double connection in StrictMode
         if (!hasConnectedOnceRef.current) {
-            connectSocket('/receiver', (socket)=>{ // 假設 connectSocket 會傳遞 socket 物件
+            connectSocket('/receiver', (socket)=>{ 
                 console.log('socket connect to server! My ID is:', socket.id);
-                setSocketId(socket.id); // <-- 在這裡直接設定 socketId
+                setSocketId(socket.id);
                 emitData('connected', {
                     uuid: uuidRef.current
                 })
@@ -184,9 +181,7 @@ function SocketHandler(props) {
             });
             hasConnectedOnceRef.current = true;
         }
-        // Event handlers should still be set up on each effect run
 
-        // Register event listeners
         onSocket('disconnect', handleDisconnect);
         onSocket('debug', handleDebug);
         onSocket('speak', handleSpeak);
@@ -196,7 +191,6 @@ function SocketHandler(props) {
 
         const beforeUnloadListener = (event) => {
             event.preventDefault();
-            // emitData is safe to use here
             emitData('disconnected', { uuid: uuidRef.current });
             return event;
         };
@@ -204,9 +198,6 @@ function SocketHandler(props) {
             window.addEventListener("beforeunload", beforeUnloadListener);
 
         return () => {
-            // Cleanup: Unregister event listeners
-            // 為了確保正確移除監聽器，最好將處理程序函數本身傳遞給清理函數。
-            // 這可以防止在 React.StrictMode 中或因其他原因導致 effect 重新運行時，出現重複的監聽器。
             offSocket('disconnect', handleDisconnect);
             offSocket('debug', handleDebug);
             offSocket('speak', handleSpeak);
@@ -216,13 +207,12 @@ function SocketHandler(props) {
             window.removeEventListener("beforeunload", beforeUnloadListener);
         };
         
-        
     }, [handleControlData, handleDisconnect, handleDebug, handleSpeak, handleSpeakConfig]);
 
     const speakOver = useCallback(() => {
-        speakRef.current = false; // 立即解鎖
+        speakRef.current = false;
         setSpeak(false);
-        const currentId = idRef.current; // Read the latest id from the ref
+        const currentId = idRef.current;
         console.log('speak over, id:', currentId);
         if (currentId !== -1) {
             emitData('speakOver', {id: currentId});

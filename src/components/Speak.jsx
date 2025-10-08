@@ -5,7 +5,6 @@ import Fade from './Fade';
 import {FullDiv} from '../usages/cssUsage';
 import {excludeName} from '../usages/voiceUsage';
 
-// Helper function to filter voices and determine a default index
 const getFilteredAndDefaultVoice = (synthInstance, excludeNamesSet) => {
   const allVoices = synthInstance.getVoices();
   if (!allVoices || allVoices.length === 0) {
@@ -18,7 +17,6 @@ const getFilteredAndDefaultVoice = (synthInstance, excludeNamesSet) => {
 
   for (let i = 0; i < allVoices.length; i++) {
     const voice = allVoices[i];
-    // Ensure voice and voice.name are defined before accessing properties
     if (voice && voice.name && !excludeNamesSet.has(voice.name) && !seenNames.has(voice.name)) {
       filteredVoices.push(voice);
       seenNames.add(voice.name);
@@ -46,15 +44,12 @@ function Speak(props) {
   const {toSpeak, data, speakOver, voiceCommand} = props;
   const prevToSpeak = usePrevious(toSpeak);
   const [revealSentence, setRevealSentence] = useState('');
-  const isInitialMount = useRef(true); // Ref to track the very first render cycle
-  const voicesInitialized = useRef(false); // Ref to track if the voice list has been loaded
+  const isInitialMount = useRef(true);
+  const voicesInitialized = useRef(false);
   const [isRandomizing, setIsRandomizing] = useState(false);
 
-  // Effect for initializing and updating voices
   useEffect(()=>{
     const updateVoiceList = () => {
-      // If voices have already been loaded once, ignore subsequent onvoiceschanged events.
-      // This prevents the selected voice from being reset unexpectedly.
       if (voicesInitialized.current) {
         console.log('onvoiceschanged fired again, but voices are already initialized. Ignoring.');
         return;
@@ -63,7 +58,7 @@ function Speak(props) {
       const { newVoices, newVoiceIndex } = getFilteredAndDefaultVoice(synth, excludeName);
       setVoices(newVoices);
       setVoiceIndex(newVoiceIndex);
-      voicesInitialized.current = true; // Mark as initialized
+      voicesInitialized.current = true;
       console.log('Voice list initialized.');
     };
 
@@ -71,16 +66,12 @@ function Speak(props) {
         updateVoiceList();
     }
 
-    // Use onvoiceschanged for broader browser compatibility, as addEventListener
-    // is not supported on the speechSynthesis object in all browsers.
     synth.onvoiceschanged = updateVoiceList;
     return () => {
       synth.onvoiceschanged = null;
     };
-  }, []); // excludeName is a constant import
+  }, []);
 
-  // Cleanup effect to cancel any ongoing speech when the component unmounts.
-  // This prevents orphaned speech synthesis processes.
   useEffect(() => {
     return () => {
       synth.cancel();
@@ -90,7 +81,6 @@ function Speak(props) {
   const speakTextInternal = useCallback((text, currentPitch, currentRate, selectedVoice) => {
     if (!selectedVoice) {
         console.warn("No voice selected for speaking.");
-        // If we can't speak, immediately tell the parent we are done.
         speakOver();
         return;
     }
@@ -100,10 +90,8 @@ function Speak(props) {
     utterThis.pitch = currentPitch;
     utterThis.rate = currentRate;
 
-    // Safety net timer in case onend/onerror doesn't fire.
-    // Estimated speech duration + a 5-second buffer.
-    const estimatedDuration = (text.length / 10) * 1000 * (1 / currentRate); // Rough estimate
-    const safetyTimeout = Math.max(5000, estimatedDuration + 5000); // Minimum 5s
+    const estimatedDuration = (text.length / 10) * 1000 * (1 / currentRate);
+    const safetyTimeout = Math.max(5000, estimatedDuration + 5000); 
     const safetyTimer = setTimeout(() => {
       console.warn(`Speech safety timer triggered after ${safetyTimeout}ms. Forcing speakOver.`);
       speakOver();
@@ -111,10 +99,10 @@ function Speak(props) {
     }, safetyTimeout);
 
     const handleSpeechEnd = () => {
-      clearTimeout(safetyTimer); // Clear the safety timer
+      clearTimeout(safetyTimer);
       console.log('SpeechSynthesisUtterance onend/onerror triggered.');
-      speakOver(); // Notify parent that speech is over
-      setRevealSentence(""); // Clear the displayed sentence
+      speakOver();
+      setRevealSentence("");
     };
 
     utterThis.onend = handleSpeechEnd;
@@ -122,22 +110,16 @@ function Speak(props) {
 
     console.log('im speaking:', text, synth);
     synth.speak(utterThis);
-  }, [synth, setRevealSentence, speakOver]); // Dependencies remain the same
+  }, [synth, setRevealSentence, speakOver]); 
 
-  // This effect triggers speech only on the "rising edge" of the toSpeak prop.
-  // It also handles stopping the speech on the "falling edge".
   useEffect(() => {
-    // Rising edge: toSpeak becomes true, let's start speaking.
     if (toSpeak && !prevToSpeak) {
-      // Guard against missing data or voices.
       if (!data.text || voices.length === 0) {
         console.warn("Speak command received, but no text or voices available. Aborting.");
         speakOver();
         return;
       }
 
-      // Determine pitch and rate, and update local state if new values are provided.
-      // This keeps the form in sync with the last spoken parameters.
       const finalPitch = data.pitch !== undefined ? data.pitch : pitch;
       const finalRate = data.rate !== undefined ? data.rate : rate;
 
@@ -148,21 +130,17 @@ function Speak(props) {
       console.log('speakTextInternal:', data.text, finalPitch, finalRate, selectedVoice);
       speakTextInternal(data.text, finalPitch, finalRate, selectedVoice);
     } else if (!toSpeak && prevToSpeak) {
-      // Falling edge: toSpeak becomes false (e.g., from a stop command)
       console.log('toSpeak became false. Cancelling any ongoing speech.');
       synth.cancel();
-      // The onend event will not fire when we cancel, so we need to manually
-      // clear the sentence that is displayed on screen.
       setRevealSentence("");
     }
   }, [toSpeak, prevToSpeak, data, voices, voiceIndex, pitch, rate, speakOver]);
 
-  // This effect will rapidly change the voice index for a visual "shuffling" effect.
   useInterval(() => {
     if (voices.length > 0) {
         setVoiceIndex(Math.floor(Math.random() * voices.length));
     }
-  }, isRandomizing ? 100 : null); // Runs every 100ms only when isRandomizing is true.
+  }, isRandomizing ? 100 : null);
 
   useEffect(()=>{
     if (isInitialMount.current) {
@@ -170,15 +148,12 @@ function Speak(props) {
       return;
     }
 
-    // Report to parent only when the voice has "settled" (not randomizing)
-    // and it's not the initial mount.
     if (!isRandomizing && voices.length > 0 && voices[voiceIndex]) {
         console.log('Voice changed. Reporting to parent:', voices[voiceIndex].name);
         props.changeVoiceCallback({name:voices[voiceIndex].name, lang:voices[voiceIndex].lang});
     }
   }, [voiceIndex, isRandomizing]);
 
-  // Unified effect to handle all voice change commands from the server
   useEffect(() => {
     if (!voiceCommand || voices.length === 0) {
       return;
@@ -206,7 +181,7 @@ function Speak(props) {
                 if (lang) {
                     console.log(`Filtering by lang equal to "${lang}".`);
                     matchingVoices = matchingVoices.filter(v => v.lang === lang);
-                    console.log(matchingVoices);
+                    console.log(matchingVoices); 
                 }
 
                 if (matchingVoices.length > 0) {
@@ -227,13 +202,11 @@ function Speak(props) {
         }, 10);
     }, 1000);
 
-    // Cleanup function to clear the timer if the component unmounts or the command changes.
     return () => clearTimeout(animationTimer);
-  }, [voiceCommand, voices, props.changeVoiceCallback]); // Keep changeVoiceCallback in dependencies
+  }, [voiceCommand, voices, props.changeVoiceCallback]);
 
   let submitSpeak = (event) => {
     event.preventDefault();
-    // This test function speaks "hello" with the current settings
     if (voices.length > 0 && voices[voiceIndex]) {
       speakTextInternal('hello', pitch, rate, voices[voiceIndex]);
     }

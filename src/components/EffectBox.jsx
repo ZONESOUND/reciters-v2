@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import AnimeBox from './AnimeBox';
-// import MusicBox from './MusicBox';
 import Fade from './Fade';
 import MusicBoxMin from './MusicBox';
 

@@ -73,22 +73,18 @@ const AnimeBox = React.memo(({ data, opacity, refresh }) => {
 
 	useEffect(() => {
 		const runAnimationSequence = async () => {
-			// 如果 mode 發生變化，在開始新動畫前先慢慢變回黑色
 			if (prevModeRef.current && prevModeRef.current !== data.mode) {
-				// 等待淡出到黑色的動畫完成
 				await controls.start({
 					backgroundColor: 'rgba(0,0,0,0)'
 				}, {
-					duration: 0.5, // 淡出動畫持續 0.3 秒
+					duration: 0.5,
 					ease: "easeOut"
 				});
 			}
-			// 開始新的動畫
 			controls.start(animate, transition);
 		};
 		runAnimationSequence();
 
-		// 更新 ref 以供下次比較
 		prevModeRef.current = data.mode;
 	}, [refresh, animate, transition, controls, data.mode]);
 

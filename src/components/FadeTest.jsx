@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import Fade from './Fade'; // 引入 Fade 元件
-import { FullDiv } from '../usages/cssUsage'; // 引入 FullDiv 樣式元件
+import Fade from './Fade'; 
+import { FullDiv } from '../usages/cssUsage'; 
 
 const FadeTest = () => {
     const [showContent, setShowContent] = useState(false);
