@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
       externalSystemJS: false
     })
   ],
-  base: mode === 'production' ? '/reciter-v2/' : '/',
+  base: mode === 'production' ? '/reciters-v2/' : '/',
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
