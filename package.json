@@ -12,7 +12,8 @@
     "preview": "vite preview --host",
     "lint": "eslint .",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "clean": "gh-pages-clean -d dist"
   },
   "dependencies": {
     "motion": "^12.19.1",
