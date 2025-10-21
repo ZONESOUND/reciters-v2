@@ -5,16 +5,17 @@
   "type": "module",
   "homepage": "https://zonesound.github.io/reciters-v2",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
-    "preview:dev": "vite preview --host --mode development",
-    "preview": "vite preview --host",
-    "lint": "eslint .",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
-    "clean": "gh-pages-clean -d dist"
-  },
+   "dev": "vite",
+   "build": "vite build",
+   "build:dev": "vite build --mode development",
+   "preview:dev": "vite preview --host --mode development",
+   "preview": "vite preview --host",
+   "lint": "eslint .",
+   "predeploy": "npm run build",
+   "deploy": "gh-pages -d dist -r git@github.com:ZONESOUND/reciters-v2.git -b gh-pages --no-history",
+   "deploy:clean": "gh-pages-clean && npm run deploy",
+   "clean": "gh-pages-clean -d dist"
+ },
   "dependencies": {
     "motion": "^12.19.1",
     "react": "^19.1.0",
